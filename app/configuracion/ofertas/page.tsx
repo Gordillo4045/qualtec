@@ -26,89 +26,106 @@ import {
     Edit,
     Trash2,
     Eye,
-    BookOpen,
-    Users,
+    ClipboardList,
+    BookMarked,
+    Users2,
     Calendar,
-    CheckCircle,
+    GraduationCap,
     Clock,
-    AlertTriangle
+    User
 } from "lucide-react"
 
-export default function InscripcionesPage() {
-    const inscripciones = [
+export default function OfertasPage() {
+    const ofertas = [
         {
             id: 1,
-            estudiante: "Juan Pérez García",
-            numeroControl: "2024001",
             materia: "Cálculo Diferencial",
-            grupo: "A",
+            clave: "CAL-001",
+            grupo: "ISC-1A",
             periodo: "2024-1",
-            calificacion: 85,
-            asistencia: 92,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-15"
+            carrera: "Ing. Sistemas",
+            docente: "Dr. Juan Pérez",
+            horario: "L-M-V 8:00-10:00",
+            aula: "A-101",
+            cupo: 30,
+            inscritos: 28,
+            estatus: "Activa"
         },
         {
             id: 2,
-            estudiante: "María García López",
-            numeroControl: "2024002",
-            materia: "Física I",
-            grupo: "B",
+            materia: "Programación I",
+            clave: "PRO-001",
+            grupo: "ISC-1B",
             periodo: "2024-1",
-            calificacion: 78,
-            asistencia: 88,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-16"
+            carrera: "Ing. Sistemas",
+            docente: "Dra. María García",
+            horario: "M-J 10:00-12:00",
+            aula: "L-201",
+            cupo: 25,
+            inscritos: 23,
+            estatus: "Activa"
         },
         {
             id: 3,
-            estudiante: "Carlos López Martínez",
-            numeroControl: "2024003",
-            materia: "Programación I",
-            grupo: "A",
+            materia: "Física I",
+            clave: "FIS-001",
+            grupo: "II-1A",
             periodo: "2024-1",
-            calificacion: 65,
-            asistencia: 75,
-            estatus: "Reprobado",
-            fechaInscripcion: "2024-01-17"
+            carrera: "Ing. Industrial",
+            docente: "Dr. Carlos López",
+            horario: "L-M-V 14:00-16:00",
+            aula: "F-301",
+            cupo: 35,
+            inscritos: 32,
+            estatus: "Activa"
         },
         {
             id: 4,
-            estudiante: "Ana Martínez Rodríguez",
-            numeroControl: "2024004",
             materia: "Química General",
-            grupo: "C",
+            clave: "QUI-001",
+            grupo: "IQ-1A",
             periodo: "2024-1",
-            calificacion: 92,
-            asistencia: 95,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-18"
+            carrera: "Ing. Química",
+            docente: "Dra. Ana Martínez",
+            horario: "M-J 8:00-10:00",
+            aula: "Q-101",
+            cupo: 20,
+            inscritos: 18,
+            estatus: "Activa"
         },
         {
             id: 5,
-            estudiante: "Luis Hernández Silva",
-            numeroControl: "2024005",
             materia: "Matemáticas Discretas",
-            grupo: "A",
+            clave: "MAT-002",
+            grupo: "ISC-3A",
             periodo: "2024-1",
-            calificacion: 88,
-            asistencia: 90,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-19"
+            carrera: "Ing. Sistemas",
+            docente: "Dr. Luis Hernández",
+            horario: "L-M-V 16:00-18:00",
+            aula: "A-205",
+            cupo: 30,
+            inscritos: 25,
+            estatus: "Activa"
         }
     ]
 
     const getStatusBadge = (estatus: string) => {
         switch (estatus) {
-            case "Aprobado":
-                return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Aprobado</Badge>
-            case "Reprobado":
-                return <Badge variant="destructive" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Reprobado</Badge>
-            case "En Proceso":
-                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />En Proceso</Badge>
+            case "Activa":
+                return <Badge variant="default" className="bg-green-100 text-green-800">Activa</Badge>
+            case "Completa":
+                return <Badge variant="outline" className="bg-blue-100 text-blue-800">Completa</Badge>
+            case "Cancelada":
+                return <Badge variant="destructive" className="bg-red-100 text-red-800">Cancelada</Badge>
+            case "En Espera":
+                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">En Espera</Badge>
             default:
-                return <Badge variant="outline">Sin calificar</Badge>
+                return <Badge variant="outline">Desconocido</Badge>
         }
+    }
+
+    const getCupoPercentage = (inscritos: number, cupo: number) => {
+        return Math.round((inscritos / cupo) * 100)
     }
 
     return (
@@ -117,9 +134,9 @@ export default function InscripcionesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Inscripciones</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">Gestión de Ofertas</h1>
                         <p className="text-muted-foreground">
-                            Control y gestión de inscripciones estudiantiles
+                            Administra las ofertas académicas por periodo
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -129,7 +146,7 @@ export default function InscripcionesPage() {
                         </Button>
                         <Button size="sm">
                             <Plus className="h-4 w-4 mr-2" />
-                            Nueva Inscripción
+                            Nueva Oferta
                         </Button>
                     </div>
                 </div>
@@ -139,7 +156,7 @@ export default function InscripcionesPage() {
                     <CardHeader>
                         <CardTitle>Filtros y Búsqueda</CardTitle>
                         <CardDescription>
-                            Busca y filtra inscripciones por diferentes criterios
+                            Busca y filtra ofertas por diferentes criterios
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -148,7 +165,7 @@ export default function InscripcionesPage() {
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Buscar por estudiante, materia o número de control..."
+                                        placeholder="Buscar por materia, docente o grupo..."
                                         className="pl-10"
                                     />
                                 </div>
@@ -159,10 +176,10 @@ export default function InscripcionesPage() {
                                     Filtros
                                 </Button>
                                 <Button variant="outline" size="sm">
-                                    Materia
+                                    Periodo
                                 </Button>
                                 <Button variant="outline" size="sm">
-                                    Periodo
+                                    Carrera
                                 </Button>
                                 <Button variant="outline" size="sm">
                                     Estatus
@@ -172,12 +189,12 @@ export default function InscripcionesPage() {
                     </CardContent>
                 </Card>
 
-                {/* Tabla de inscripciones */}
+                {/* Tabla de ofertas */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Lista de Inscripciones</CardTitle>
+                        <CardTitle>Lista de Ofertas</CardTitle>
                         <CardDescription>
-                            {inscripciones.length} inscripciones registradas en el sistema
+                            {ofertas.length} ofertas registradas en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -185,40 +202,61 @@ export default function InscripcionesPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Estudiante</TableHead>
                                         <TableHead>Materia</TableHead>
                                         <TableHead>Grupo</TableHead>
-                                        <TableHead>Periodo</TableHead>
-                                        <TableHead>Calificación</TableHead>
-                                        <TableHead>Asistencia</TableHead>
+                                        <TableHead>Docente</TableHead>
+                                        <TableHead>Horario</TableHead>
+                                        <TableHead>Aula</TableHead>
+                                        <TableHead>Cupo</TableHead>
+                                        <TableHead>Inscritos</TableHead>
                                         <TableHead>Estatus</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {inscripciones.map((inscripcion) => (
-                                        <TableRow key={inscripcion.id}>
-                                            <TableCell>
-                                                <div>
-                                                    <div className="font-medium">{inscripcion.estudiante}</div>
-                                                    <div className="text-sm text-muted-foreground">{inscripcion.numeroControl}</div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{inscripcion.materia}</TableCell>
-                                            <TableCell>{inscripcion.grupo}</TableCell>
-                                            <TableCell>{inscripcion.periodo}</TableCell>
+                                    {ofertas.map((oferta) => (
+                                        <TableRow key={oferta.id}>
                                             <TableCell>
                                                 <div className="flex items-center">
-                                                    <span className="font-medium">{inscripcion.calificacion}</span>
-                                                    <span className="text-sm text-muted-foreground ml-1">/100</span>
+                                                    <BookMarked className="h-4 w-4 text-green-600 mr-2" />
+                                                    <div>
+                                                        <div className="font-medium">{oferta.materia}</div>
+                                                        <div className="text-sm text-muted-foreground">{oferta.clave}</div>
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
-                                                    <span className="font-medium">{inscripcion.asistencia}%</span>
+                                                    <Users2 className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {oferta.grupo}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{getStatusBadge(inscripcion.estatus)}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <User className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {oferta.docente}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Clock className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {oferta.horario}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{oferta.aula}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Calendar className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {oferta.cupo}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <User className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {oferta.inscritos}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{getStatusBadge(oferta.estatus)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -233,7 +271,15 @@ export default function InscripcionesPage() {
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem>
                                                             <Edit className="mr-2 h-4 w-4" />
-                                                            Editar calificación
+                                                            Editar
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem>
+                                                            <User className="mr-2 h-4 w-4" />
+                                                            Ver inscritos
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem>
+                                                            <Calendar className="mr-2 h-4 w-4" />
+                                                            Ver horario
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem className="text-red-600">
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -254,40 +300,38 @@ export default function InscripcionesPage() {
                 <div className="grid gap-4 md:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Inscripciones</CardTitle>
-                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-sm font-medium">Total Ofertas</CardTitle>
+                            <ClipboardList className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{inscripciones.length}</div>
+                            <div className="text-2xl font-bold">{ofertas.length}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Aprobados</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CardTitle className="text-sm font-medium">Ofertas Activas</CardTitle>
+                            <ClipboardList className="h-4 w-4 text-green-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{inscripciones.filter(i => i.estatus === "Aprobado").length}</div>
+                            <div className="text-2xl font-bold">{ofertas.filter(o => o.estatus === "Activa").length}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Reprobados</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                            <CardTitle className="text-sm font-medium">Total Inscritos</CardTitle>
+                            <User className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{inscripciones.filter(i => i.estatus === "Reprobado").length}</div>
+                            <div className="text-2xl font-bold">{ofertas.reduce((acc, curr) => acc + curr.inscritos, 0)}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Promedio General</CardTitle>
-                            <Users className="h-4 w-4 text-blue-600" />
+                            <CardTitle className="text-sm font-medium">Capacidad Total</CardTitle>
+                            <Calendar className="h-4 w-4 text-purple-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
-                                {Math.round(inscripciones.reduce((acc, curr) => acc + curr.calificacion, 0) / inscripciones.length)}
-                            </div>
+                            <div className="text-2xl font-bold">{ofertas.reduce((acc, curr) => acc + curr.cupo, 0)}</div>
                         </CardContent>
                     </Card>
                 </div>

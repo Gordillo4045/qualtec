@@ -26,93 +26,95 @@ import {
     Edit,
     Trash2,
     Eye,
-    AlertTriangle,
-    CheckCircle,
-    Clock
+    Users2,
+    GraduationCap,
+    Clock,
+    Calendar,
+    User
 } from "lucide-react"
 
-export default function EstudiantesPage() {
-    const estudiantes = [
+export default function GruposPage() {
+    const grupos = [
         {
             id: 1,
-            numeroControl: "2024001",
-            nombre: "Juan Pérez García",
+            clave: "ISC-1A",
             carrera: "Ing. Sistemas",
-            modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Alto",
-            fechaIngreso: "2024-01-15",
-            email: "juan.perez@email.com"
+            turno: "Matutino",
+            semestre: 1,
+            capacidad: 30,
+            estudiantes: 28,
+            periodo: "2024-1",
+            estatus: "Activo"
         },
         {
             id: 2,
-            numeroControl: "2024002",
-            nombre: "María García López",
-            carrera: "Ing. Industrial",
-            modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Medio",
-            fechaIngreso: "2024-01-20",
-            email: "maria.garcia@email.com"
+            clave: "ISC-1B",
+            carrera: "Ing. Sistemas",
+            turno: "Vespertino",
+            semestre: 1,
+            capacidad: 30,
+            estudiantes: 25,
+            periodo: "2024-1",
+            estatus: "Activo"
         },
         {
             id: 3,
-            numeroControl: "2024003",
-            nombre: "Carlos López Martínez",
-            carrera: "Ing. Mecánica",
-            modalidad: "Mixta",
-            estatus: "Activo",
-            riesgo: "Alto",
-            fechaIngreso: "2024-02-01",
-            email: "carlos.lopez@email.com"
+            clave: "II-1A",
+            carrera: "Ing. Industrial",
+            turno: "Matutino",
+            semestre: 1,
+            capacidad: 35,
+            estudiantes: 32,
+            periodo: "2024-1",
+            estatus: "Activo"
         },
         {
             id: 4,
-            numeroControl: "2024004",
-            nombre: "Ana Martínez Rodríguez",
-            carrera: "Ing. Química",
-            modalidad: "Escolarizada",
-            estatus: "Baja Temporal",
-            riesgo: "Bajo",
-            fechaIngreso: "2024-02-10",
-            email: "ana.martinez@email.com"
+            clave: "IM-3A",
+            carrera: "Ing. Mecánica",
+            turno: "Matutino",
+            semestre: 3,
+            capacidad: 25,
+            estudiantes: 22,
+            periodo: "2024-1",
+            estatus: "Activo"
         },
         {
             id: 5,
-            numeroControl: "2024005",
-            nombre: "Luis Hernández Silva",
-            carrera: "Ing. Electrónica",
-            modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Medio",
-            fechaIngreso: "2024-02-15",
-            email: "luis.hernandez@email.com"
+            clave: "IQ-1A",
+            carrera: "Ing. Química",
+            turno: "Matutino",
+            semestre: 1,
+            capacidad: 20,
+            estudiantes: 18,
+            periodo: "2024-1",
+            estatus: "Activo"
         }
     ]
 
     const getStatusBadge = (estatus: string) => {
         switch (estatus) {
             case "Activo":
-                return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Activo</Badge>
-            case "Baja Temporal":
-                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Baja Temporal</Badge>
-            case "Egresado":
-                return <Badge variant="outline" className="bg-blue-100 text-blue-800">Egresado</Badge>
+                return <Badge variant="default" className="bg-green-100 text-green-800">Activo</Badge>
+            case "Inactivo":
+                return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inactivo</Badge>
+            case "Completo":
+                return <Badge variant="outline" className="bg-blue-100 text-blue-800">Completo</Badge>
             default:
-                return <Badge variant="destructive">Desertor</Badge>
+                return <Badge variant="outline">Desconocido</Badge>
         }
     }
 
-    const getRiskBadge = (riesgo: string) => {
-        switch (riesgo) {
-            case "Alto":
-                return <Badge variant="destructive" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Alto</Badge>
-            case "Medio":
-                return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Medio</Badge>
-            case "Bajo":
-                return <Badge variant="secondary" className="bg-green-100 text-green-800">Bajo</Badge>
+    const getTurnoBadge = (turno: string) => {
+        switch (turno) {
+            case "Matutino":
+                return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Matutino</Badge>
+            case "Vespertino":
+                return <Badge variant="outline" className="bg-orange-100 text-orange-800">Vespertino</Badge>
+            case "Nocturno":
+                return <Badge variant="outline" className="bg-purple-100 text-purple-800">Nocturno</Badge>
             default:
-                return <Badge variant="outline">Sin riesgo</Badge>
+                return <Badge variant="outline">Mixto</Badge>
         }
     }
 
@@ -122,9 +124,9 @@ export default function EstudiantesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Estudiantes</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">Gestión de Grupos</h1>
                         <p className="text-muted-foreground">
-                            Gestión y administración de estudiantes
+                            Configura los grupos de estudiantes y sus horarios
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -134,7 +136,7 @@ export default function EstudiantesPage() {
                         </Button>
                         <Button size="sm">
                             <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Estudiante
+                            Nuevo Grupo
                         </Button>
                     </div>
                 </div>
@@ -144,7 +146,7 @@ export default function EstudiantesPage() {
                     <CardHeader>
                         <CardTitle>Filtros y Búsqueda</CardTitle>
                         <CardDescription>
-                            Busca y filtra estudiantes por diferentes criterios
+                            Busca y filtra grupos por diferentes criterios
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -153,7 +155,7 @@ export default function EstudiantesPage() {
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Buscar por nombre, número de control o email..."
+                                        placeholder="Buscar por clave, carrera o turno..."
                                         className="pl-10"
                                     />
                                 </div>
@@ -167,22 +169,22 @@ export default function EstudiantesPage() {
                                     Carrera
                                 </Button>
                                 <Button variant="outline" size="sm">
-                                    Estatus
+                                    Turno
                                 </Button>
                                 <Button variant="outline" size="sm">
-                                    Riesgo
+                                    Semestre
                                 </Button>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Tabla de estudiantes */}
+                {/* Tabla de grupos */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Lista de Estudiantes</CardTitle>
+                        <CardTitle>Lista de Grupos</CardTitle>
                         <CardDescription>
-                            {estudiantes.length} estudiantes registrados en el sistema
+                            {grupos.length} grupos registrados en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -190,33 +192,48 @@ export default function EstudiantesPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Número de Control</TableHead>
-                                        <TableHead>Nombre</TableHead>
+                                        <TableHead>Clave</TableHead>
                                         <TableHead>Carrera</TableHead>
-                                        <TableHead>Modalidad</TableHead>
+                                        <TableHead>Turno</TableHead>
+                                        <TableHead>Semestre</TableHead>
+                                        <TableHead>Capacidad</TableHead>
+                                        <TableHead>Estudiantes</TableHead>
+                                        <TableHead>Periodo</TableHead>
                                         <TableHead>Estatus</TableHead>
-                                        <TableHead>Riesgo</TableHead>
-                                        <TableHead>Fecha Ingreso</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {estudiantes.map((estudiante) => (
-                                        <TableRow key={estudiante.id}>
-                                            <TableCell className="font-medium">
-                                                {estudiante.numeroControl}
-                                            </TableCell>
+                                    {grupos.map((grupo) => (
+                                        <TableRow key={grupo.id}>
                                             <TableCell>
-                                                <div>
-                                                    <div className="font-medium">{estudiante.nombre}</div>
-                                                    <div className="text-sm text-muted-foreground">{estudiante.email}</div>
+                                                <div className="flex items-center">
+                                                    <Users2 className="h-4 w-4 text-purple-600 mr-2" />
+                                                    <div className="font-medium">{grupo.clave}</div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{estudiante.carrera}</TableCell>
-                                            <TableCell>{estudiante.modalidad}</TableCell>
-                                            <TableCell>{getStatusBadge(estudiante.estatus)}</TableCell>
-                                            <TableCell>{getRiskBadge(estudiante.riesgo)}</TableCell>
-                                            <TableCell>{estudiante.fechaIngreso}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <GraduationCap className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {grupo.carrera}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{getTurnoBadge(grupo.turno)}</TableCell>
+                                            <TableCell>{grupo.semestre}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <User className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {grupo.capacidad}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Users2 className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {grupo.estudiantes}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{grupo.periodo}</TableCell>
+                                            <TableCell>{getStatusBadge(grupo.estatus)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -232,6 +249,14 @@ export default function EstudiantesPage() {
                                                         <DropdownMenuItem>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem>
+                                                            <Users2 className="mr-2 h-4 w-4" />
+                                                            Ver estudiantes
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem>
+                                                            <Calendar className="mr-2 h-4 w-4" />
+                                                            Ver horario
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem className="text-red-600">
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -252,38 +277,38 @@ export default function EstudiantesPage() {
                 <div className="grid gap-4 md:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Grupos</CardTitle>
+                            <Users2 className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{grupos.length}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Grupos Activos</CardTitle>
+                            <Users2 className="h-4 w-4 text-green-600" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{grupos.filter(g => g.estatus === "Activo").length}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Estudiantes</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                            <User className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.length}</div>
+                            <div className="text-2xl font-bold">{grupos.reduce((acc, curr) => acc + curr.estudiantes, 0)}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Activos</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CardTitle className="text-sm font-medium">Capacidad Total</CardTitle>
+                            <Clock className="h-4 w-4 text-purple-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.estatus === "Activo").length}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Alto Riesgo</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-red-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.riesgo === "Alto").length}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Baja Temporal</CardTitle>
-                            <Clock className="h-4 w-4 text-yellow-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.estatus === "Baja Temporal").length}</div>
+                            <div className="text-2xl font-bold">{grupos.reduce((acc, curr) => acc + curr.capacidad, 0)}</div>
                         </CardContent>
                     </Card>
                 </div>

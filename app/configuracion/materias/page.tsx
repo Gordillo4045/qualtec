@@ -26,93 +26,87 @@ import {
     Edit,
     Trash2,
     Eye,
-    AlertTriangle,
-    CheckCircle,
-    Clock
+    BookMarked,
+    Building,
+    Users,
+    Clock,
+    BookOpen
 } from "lucide-react"
 
-export default function EstudiantesPage() {
-    const estudiantes = [
+export default function MateriasPage() {
+    const materias = [
         {
             id: 1,
-            numeroControl: "2024001",
-            nombre: "Juan Pérez García",
+            nombre: "Cálculo Diferencial",
+            clave: "CAL-001",
+            departamento: "Matemáticas",
             carrera: "Ing. Sistemas",
-            modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Alto",
-            fechaIngreso: "2024-01-15",
-            email: "juan.perez@email.com"
+            creditos: 4,
+            horasTeoria: 3,
+            horasPractica: 2,
+            semestre: 1,
+            estatus: "Activa"
         },
         {
             id: 2,
-            numeroControl: "2024002",
-            nombre: "María García López",
-            carrera: "Ing. Industrial",
-            modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Medio",
-            fechaIngreso: "2024-01-20",
-            email: "maria.garcia@email.com"
+            nombre: "Programación I",
+            clave: "PRO-001",
+            departamento: "Sistemas y Computación",
+            carrera: "Ing. Sistemas",
+            creditos: 5,
+            horasTeoria: 2,
+            horasPractica: 4,
+            semestre: 2,
+            estatus: "Activa"
         },
         {
             id: 3,
-            numeroControl: "2024003",
-            nombre: "Carlos López Martínez",
-            carrera: "Ing. Mecánica",
-            modalidad: "Mixta",
-            estatus: "Activo",
-            riesgo: "Alto",
-            fechaIngreso: "2024-02-01",
-            email: "carlos.lopez@email.com"
+            nombre: "Física I",
+            clave: "FIS-001",
+            departamento: "Física",
+            carrera: "Ing. Industrial",
+            creditos: 4,
+            horasTeoria: 3,
+            horasPractica: 2,
+            semestre: 1,
+            estatus: "Activa"
         },
         {
             id: 4,
-            numeroControl: "2024004",
-            nombre: "Ana Martínez Rodríguez",
+            nombre: "Química General",
+            clave: "QUI-001",
+            departamento: "Química",
             carrera: "Ing. Química",
-            modalidad: "Escolarizada",
-            estatus: "Baja Temporal",
-            riesgo: "Bajo",
-            fechaIngreso: "2024-02-10",
-            email: "ana.martinez@email.com"
+            creditos: 4,
+            horasTeoria: 3,
+            horasPractica: 2,
+            semestre: 1,
+            estatus: "Activa"
         },
         {
             id: 5,
-            numeroControl: "2024005",
-            nombre: "Luis Hernández Silva",
-            carrera: "Ing. Electrónica",
-            modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Medio",
-            fechaIngreso: "2024-02-15",
-            email: "luis.hernandez@email.com"
+            nombre: "Matemáticas Discretas",
+            clave: "MAT-002",
+            departamento: "Matemáticas",
+            carrera: "Ing. Sistemas",
+            creditos: 4,
+            horasTeoria: 3,
+            horasPractica: 2,
+            semestre: 3,
+            estatus: "Activa"
         }
     ]
 
     const getStatusBadge = (estatus: string) => {
         switch (estatus) {
-            case "Activo":
-                return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Activo</Badge>
-            case "Baja Temporal":
-                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Baja Temporal</Badge>
-            case "Egresado":
-                return <Badge variant="outline" className="bg-blue-100 text-blue-800">Egresado</Badge>
+            case "Activa":
+                return <Badge variant="default" className="bg-green-100 text-green-800">Activa</Badge>
+            case "Inactiva":
+                return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inactiva</Badge>
+            case "En Revisión":
+                return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">En Revisión</Badge>
             default:
-                return <Badge variant="destructive">Desertor</Badge>
-        }
-    }
-
-    const getRiskBadge = (riesgo: string) => {
-        switch (riesgo) {
-            case "Alto":
-                return <Badge variant="destructive" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Alto</Badge>
-            case "Medio":
-                return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Medio</Badge>
-            case "Bajo":
-                return <Badge variant="secondary" className="bg-green-100 text-green-800">Bajo</Badge>
-            default:
-                return <Badge variant="outline">Sin riesgo</Badge>
+                return <Badge variant="outline">Desconocido</Badge>
         }
     }
 
@@ -122,9 +116,9 @@ export default function EstudiantesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Estudiantes</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">Gestión de Materias</h1>
                         <p className="text-muted-foreground">
-                            Gestión y administración de estudiantes
+                            Administra las materias y sus contenidos curriculares
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -134,7 +128,7 @@ export default function EstudiantesPage() {
                         </Button>
                         <Button size="sm">
                             <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Estudiante
+                            Nueva Materia
                         </Button>
                     </div>
                 </div>
@@ -144,7 +138,7 @@ export default function EstudiantesPage() {
                     <CardHeader>
                         <CardTitle>Filtros y Búsqueda</CardTitle>
                         <CardDescription>
-                            Busca y filtra estudiantes por diferentes criterios
+                            Busca y filtra materias por diferentes criterios
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -153,7 +147,7 @@ export default function EstudiantesPage() {
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Buscar por nombre, número de control o email..."
+                                        placeholder="Buscar por nombre, clave o departamento..."
                                         className="pl-10"
                                     />
                                 </div>
@@ -164,25 +158,25 @@ export default function EstudiantesPage() {
                                     Filtros
                                 </Button>
                                 <Button variant="outline" size="sm">
+                                    Departamento
+                                </Button>
+                                <Button variant="outline" size="sm">
                                     Carrera
                                 </Button>
                                 <Button variant="outline" size="sm">
-                                    Estatus
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Riesgo
+                                    Semestre
                                 </Button>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Tabla de estudiantes */}
+                {/* Tabla de materias */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Lista de Estudiantes</CardTitle>
+                        <CardTitle>Lista de Materias</CardTitle>
                         <CardDescription>
-                            {estudiantes.length} estudiantes registrados en el sistema
+                            {materias.length} materias registradas en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -190,33 +184,47 @@ export default function EstudiantesPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Número de Control</TableHead>
                                         <TableHead>Nombre</TableHead>
+                                        <TableHead>Clave</TableHead>
+                                        <TableHead>Departamento</TableHead>
                                         <TableHead>Carrera</TableHead>
-                                        <TableHead>Modalidad</TableHead>
+                                        <TableHead>Créditos</TableHead>
+                                        <TableHead>Horas</TableHead>
+                                        <TableHead>Semestre</TableHead>
                                         <TableHead>Estatus</TableHead>
-                                        <TableHead>Riesgo</TableHead>
-                                        <TableHead>Fecha Ingreso</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {estudiantes.map((estudiante) => (
-                                        <TableRow key={estudiante.id}>
-                                            <TableCell className="font-medium">
-                                                {estudiante.numeroControl}
-                                            </TableCell>
+                                    {materias.map((materia) => (
+                                        <TableRow key={materia.id}>
                                             <TableCell>
-                                                <div>
-                                                    <div className="font-medium">{estudiante.nombre}</div>
-                                                    <div className="text-sm text-muted-foreground">{estudiante.email}</div>
+                                                <div className="flex items-center">
+                                                    <BookMarked className="h-4 w-4 text-green-600 mr-2" />
+                                                    <div>
+                                                        <div className="font-medium">{materia.nombre}</div>
+                                                    </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{estudiante.carrera}</TableCell>
-                                            <TableCell>{estudiante.modalidad}</TableCell>
-                                            <TableCell>{getStatusBadge(estudiante.estatus)}</TableCell>
-                                            <TableCell>{getRiskBadge(estudiante.riesgo)}</TableCell>
-                                            <TableCell>{estudiante.fechaIngreso}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{materia.clave}</Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Building className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {materia.departamento}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{materia.carrera}</TableCell>
+                                            <TableCell>{materia.creditos}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Clock className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {materia.horasTeoria}T/{materia.horasPractica}P
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{materia.semestre}</TableCell>
+                                            <TableCell>{getStatusBadge(materia.estatus)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -232,6 +240,10 @@ export default function EstudiantesPage() {
                                                         <DropdownMenuItem>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem>
+                                                            <BookOpen className="mr-2 h-4 w-4" />
+                                                            Ver contenido
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem className="text-red-600">
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -252,38 +264,40 @@ export default function EstudiantesPage() {
                 <div className="grid gap-4 md:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Estudiantes</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-sm font-medium">Total Materias</CardTitle>
+                            <BookMarked className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.length}</div>
+                            <div className="text-2xl font-bold">{materias.length}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Activos</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CardTitle className="text-sm font-medium">Materias Activas</CardTitle>
+                            <BookMarked className="h-4 w-4 text-green-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.estatus === "Activo").length}</div>
+                            <div className="text-2xl font-bold">{materias.filter(m => m.estatus === "Activa").length}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Alto Riesgo</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                            <CardTitle className="text-sm font-medium">Departamentos</CardTitle>
+                            <Building className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.riesgo === "Alto").length}</div>
+                            <div className="text-2xl font-bold">{new Set(materias.map(m => m.departamento)).size}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Baja Temporal</CardTitle>
-                            <Clock className="h-4 w-4 text-yellow-600" />
+                            <CardTitle className="text-sm font-medium">Promedio Créditos</CardTitle>
+                            <BookOpen className="h-4 w-4 text-purple-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.estatus === "Baja Temporal").length}</div>
+                            <div className="text-2xl font-bold">
+                                {Math.round(materias.reduce((acc, curr) => acc + curr.creditos, 0) / materias.length)}
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

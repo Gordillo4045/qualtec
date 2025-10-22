@@ -26,89 +26,87 @@ import {
     Edit,
     Trash2,
     Eye,
-    BookOpen,
-    Users,
     Calendar,
-    CheckCircle,
     Clock,
-    AlertTriangle
+    CheckCircle,
+    AlertTriangle,
+    Users,
+    BookOpen
 } from "lucide-react"
 
-export default function InscripcionesPage() {
-    const inscripciones = [
+export default function PeriodosPage() {
+    const periodos = [
         {
             id: 1,
-            estudiante: "Juan Pérez García",
-            numeroControl: "2024001",
-            materia: "Cálculo Diferencial",
-            grupo: "A",
-            periodo: "2024-1",
-            calificacion: 85,
-            asistencia: 92,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-15"
+            anio: 2024,
+            etiqueta: "2024-1",
+            nombre: "Enero - Junio 2024",
+            inicio: "2024-01-15",
+            fin: "2024-06-15",
+            estatus: "Activo",
+            inscripciones: 1250,
+            materias: 156,
+            grupos: 45
         },
         {
             id: 2,
-            estudiante: "María García López",
-            numeroControl: "2024002",
-            materia: "Física I",
-            grupo: "B",
-            periodo: "2024-1",
-            calificacion: 78,
-            asistencia: 88,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-16"
+            anio: 2023,
+            etiqueta: "2023-2",
+            nombre: "Agosto - Diciembre 2023",
+            inicio: "2023-08-15",
+            fin: "2023-12-15",
+            estatus: "Finalizado",
+            inscripciones: 1180,
+            materias: 142,
+            grupos: 42
         },
         {
             id: 3,
-            estudiante: "Carlos López Martínez",
-            numeroControl: "2024003",
-            materia: "Programación I",
-            grupo: "A",
-            periodo: "2024-1",
-            calificacion: 65,
-            asistencia: 75,
-            estatus: "Reprobado",
-            fechaInscripcion: "2024-01-17"
+            anio: 2023,
+            etiqueta: "2023-1",
+            nombre: "Enero - Junio 2023",
+            inicio: "2023-01-15",
+            fin: "2023-06-15",
+            estatus: "Finalizado",
+            inscripciones: 1100,
+            materias: 138,
+            grupos: 40
         },
         {
             id: 4,
-            estudiante: "Ana Martínez Rodríguez",
-            numeroControl: "2024004",
-            materia: "Química General",
-            grupo: "C",
-            periodo: "2024-1",
-            calificacion: 92,
-            asistencia: 95,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-18"
-        },
-        {
-            id: 5,
-            estudiante: "Luis Hernández Silva",
-            numeroControl: "2024005",
-            materia: "Matemáticas Discretas",
-            grupo: "A",
-            periodo: "2024-1",
-            calificacion: 88,
-            asistencia: 90,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-19"
+            anio: 2024,
+            etiqueta: "2024-2",
+            nombre: "Agosto - Diciembre 2024",
+            inicio: "2024-08-15",
+            fin: "2024-12-15",
+            estatus: "Planificado",
+            inscripciones: 0,
+            materias: 0,
+            grupos: 0
         }
     ]
 
     const getStatusBadge = (estatus: string) => {
         switch (estatus) {
-            case "Aprobado":
-                return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Aprobado</Badge>
-            case "Reprobado":
-                return <Badge variant="destructive" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Reprobado</Badge>
+            case "Activo":
+                return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Activo</Badge>
+            case "Finalizado":
+                return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Finalizado</Badge>
+            case "Planificado":
+                return <Badge variant="outline" className="bg-blue-100 text-blue-800"><Calendar className="h-3 w-3 mr-1" />Planificado</Badge>
             case "En Proceso":
-                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />En Proceso</Badge>
+                return <Badge variant="outline" className="bg-yellow-100 text-yellow-800"><AlertTriangle className="h-3 w-3 mr-1" />En Proceso</Badge>
             default:
-                return <Badge variant="outline">Sin calificar</Badge>
+                return <Badge variant="outline">Desconocido</Badge>
         }
+    }
+
+    const getDaysRemaining = (fin: string) => {
+        const endDate = new Date(fin)
+        const today = new Date()
+        const diffTime = endDate.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        return diffDays
     }
 
     return (
@@ -117,9 +115,9 @@ export default function InscripcionesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Inscripciones</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">Gestión de Periodos</h1>
                         <p className="text-muted-foreground">
-                            Control y gestión de inscripciones estudiantiles
+                            Gestiona los periodos académicos y fechas importantes
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -129,7 +127,7 @@ export default function InscripcionesPage() {
                         </Button>
                         <Button size="sm">
                             <Plus className="h-4 w-4 mr-2" />
-                            Nueva Inscripción
+                            Nuevo Periodo
                         </Button>
                     </div>
                 </div>
@@ -139,7 +137,7 @@ export default function InscripcionesPage() {
                     <CardHeader>
                         <CardTitle>Filtros y Búsqueda</CardTitle>
                         <CardDescription>
-                            Busca y filtra inscripciones por diferentes criterios
+                            Busca y filtra periodos por diferentes criterios
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -148,7 +146,7 @@ export default function InscripcionesPage() {
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Buscar por estudiante, materia o número de control..."
+                                        placeholder="Buscar por año, etiqueta o nombre..."
                                         className="pl-10"
                                     />
                                 </div>
@@ -159,25 +157,25 @@ export default function InscripcionesPage() {
                                     Filtros
                                 </Button>
                                 <Button variant="outline" size="sm">
-                                    Materia
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Periodo
+                                    Año
                                 </Button>
                                 <Button variant="outline" size="sm">
                                     Estatus
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                    Rango de Fechas
                                 </Button>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Tabla de inscripciones */}
+                {/* Tabla de periodos */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Lista de Inscripciones</CardTitle>
+                        <CardTitle>Lista de Periodos</CardTitle>
                         <CardDescription>
-                            {inscripciones.length} inscripciones registradas en el sistema
+                            {periodos.length} periodos registrados en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -185,40 +183,60 @@ export default function InscripcionesPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Estudiante</TableHead>
-                                        <TableHead>Materia</TableHead>
-                                        <TableHead>Grupo</TableHead>
                                         <TableHead>Periodo</TableHead>
-                                        <TableHead>Calificación</TableHead>
-                                        <TableHead>Asistencia</TableHead>
+                                        <TableHead>Nombre</TableHead>
+                                        <TableHead>Fechas</TableHead>
+                                        <TableHead>Inscripciones</TableHead>
+                                        <TableHead>Materias</TableHead>
+                                        <TableHead>Grupos</TableHead>
                                         <TableHead>Estatus</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {inscripciones.map((inscripcion) => (
-                                        <TableRow key={inscripcion.id}>
-                                            <TableCell>
-                                                <div>
-                                                    <div className="font-medium">{inscripcion.estudiante}</div>
-                                                    <div className="text-sm text-muted-foreground">{inscripcion.numeroControl}</div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{inscripcion.materia}</TableCell>
-                                            <TableCell>{inscripcion.grupo}</TableCell>
-                                            <TableCell>{inscripcion.periodo}</TableCell>
+                                    {periodos.map((periodo) => (
+                                        <TableRow key={periodo.id}>
                                             <TableCell>
                                                 <div className="flex items-center">
-                                                    <span className="font-medium">{inscripcion.calificacion}</span>
-                                                    <span className="text-sm text-muted-foreground ml-1">/100</span>
+                                                    <Calendar className="h-4 w-4 text-blue-600 mr-2" />
+                                                    <div>
+                                                        <div className="font-medium">{periodo.etiqueta}</div>
+                                                        <div className="text-sm text-muted-foreground">{periodo.anio}</div>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{periodo.nombre}</TableCell>
+                                            <TableCell>
+                                                <div className="text-sm">
+                                                    <div className="flex items-center">
+                                                        <Clock className="h-3 w-3 text-muted-foreground mr-1" />
+                                                        {periodo.inicio}
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <Clock className="h-3 w-3 text-muted-foreground mr-1" />
+                                                        {periodo.fin}
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
-                                                    <span className="font-medium">{inscripcion.asistencia}%</span>
+                                                    <Users className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {periodo.inscripciones}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{getStatusBadge(inscripcion.estatus)}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <BookOpen className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {periodo.materias}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Calendar className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {periodo.grupos}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{getStatusBadge(periodo.estatus)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -233,7 +251,15 @@ export default function InscripcionesPage() {
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem>
                                                             <Edit className="mr-2 h-4 w-4" />
-                                                            Editar calificación
+                                                            Editar
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem>
+                                                            <Users className="mr-2 h-4 w-4" />
+                                                            Ver inscripciones
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem>
+                                                            <BookOpen className="mr-2 h-4 w-4" />
+                                                            Ver materias
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem className="text-red-600">
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -254,39 +280,42 @@ export default function InscripcionesPage() {
                 <div className="grid gap-4 md:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Inscripciones</CardTitle>
-                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-sm font-medium">Total Periodos</CardTitle>
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{inscripciones.length}</div>
+                            <div className="text-2xl font-bold">{periodos.length}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Aprobados</CardTitle>
+                            <CardTitle className="text-sm font-medium">Periodo Activo</CardTitle>
                             <CheckCircle className="h-4 w-4 text-green-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{inscripciones.filter(i => i.estatus === "Aprobado").length}</div>
+                            <div className="text-2xl font-bold">{periodos.filter(p => p.estatus === "Activo").length}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Reprobados</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-red-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{inscripciones.filter(i => i.estatus === "Reprobado").length}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Promedio General</CardTitle>
+                            <CardTitle className="text-sm font-medium">Total Inscripciones</CardTitle>
                             <Users className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
+                            <div className="text-2xl font-bold">{periodos.reduce((acc, curr) => acc + curr.inscripciones, 0)}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Días Restantes</CardTitle>
+                            <Clock className="h-4 w-4 text-purple-600" />
+                        </CardHeader>
+                        <CardContent>
                             <div className="text-2xl font-bold">
-                                {Math.round(inscripciones.reduce((acc, curr) => acc + curr.calificacion, 0) / inscripciones.length)}
+                                {periodos.filter(p => p.estatus === "Activo").length > 0
+                                    ? getDaysRemaining(periodos.find(p => p.estatus === "Activo")?.fin || "")
+                                    : 0
+                                }
                             </div>
                         </CardContent>
                     </Card>

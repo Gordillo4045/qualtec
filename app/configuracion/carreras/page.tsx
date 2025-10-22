@@ -26,93 +26,81 @@ import {
     Edit,
     Trash2,
     Eye,
-    AlertTriangle,
-    CheckCircle,
-    Clock
+    GraduationCap,
+    Building,
+    Users,
+    BookOpen
 } from "lucide-react"
 
-export default function EstudiantesPage() {
-    const estudiantes = [
+export default function CarrerasPage() {
+    const carreras = [
         {
             id: 1,
-            numeroControl: "2024001",
-            nombre: "Juan Pérez García",
-            carrera: "Ing. Sistemas",
+            nombre: "Ingeniería en Sistemas Computacionales",
+            clave: "ISC",
+            departamento: "Sistemas y Computación",
             modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Alto",
-            fechaIngreso: "2024-01-15",
-            email: "juan.perez@email.com"
+            duracion: "8 semestres",
+            creditos: 280,
+            estudiantes: 156,
+            estatus: "Activa"
         },
         {
             id: 2,
-            numeroControl: "2024002",
-            nombre: "María García López",
-            carrera: "Ing. Industrial",
+            nombre: "Ingeniería Industrial",
+            clave: "II",
+            departamento: "Industrial",
             modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Medio",
-            fechaIngreso: "2024-01-20",
-            email: "maria.garcia@email.com"
+            duracion: "8 semestres",
+            creditos: 275,
+            estudiantes: 142,
+            estatus: "Activa"
         },
         {
             id: 3,
-            numeroControl: "2024003",
-            nombre: "Carlos López Martínez",
-            carrera: "Ing. Mecánica",
-            modalidad: "Mixta",
-            estatus: "Activo",
-            riesgo: "Alto",
-            fechaIngreso: "2024-02-01",
-            email: "carlos.lopez@email.com"
+            nombre: "Ingeniería Mecánica",
+            clave: "IM",
+            departamento: "Mecánica",
+            modalidad: "Escolarizada",
+            duracion: "8 semestres",
+            creditos: 285,
+            estudiantes: 98,
+            estatus: "Activa"
         },
         {
             id: 4,
-            numeroControl: "2024004",
-            nombre: "Ana Martínez Rodríguez",
-            carrera: "Ing. Química",
+            nombre: "Ingeniería Química",
+            clave: "IQ",
+            departamento: "Química",
             modalidad: "Escolarizada",
-            estatus: "Baja Temporal",
-            riesgo: "Bajo",
-            fechaIngreso: "2024-02-10",
-            email: "ana.martinez@email.com"
+            duracion: "8 semestres",
+            creditos: 290,
+            estudiantes: 87,
+            estatus: "Activa"
         },
         {
             id: 5,
-            numeroControl: "2024005",
-            nombre: "Luis Hernández Silva",
-            carrera: "Ing. Electrónica",
+            nombre: "Ingeniería Electrónica",
+            clave: "IE",
+            departamento: "Electrónica",
             modalidad: "Escolarizada",
-            estatus: "Activo",
-            riesgo: "Medio",
-            fechaIngreso: "2024-02-15",
-            email: "luis.hernandez@email.com"
+            duracion: "8 semestres",
+            creditos: 280,
+            estudiantes: 76,
+            estatus: "Activa"
         }
     ]
 
     const getStatusBadge = (estatus: string) => {
         switch (estatus) {
-            case "Activo":
-                return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Activo</Badge>
-            case "Baja Temporal":
-                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Baja Temporal</Badge>
-            case "Egresado":
-                return <Badge variant="outline" className="bg-blue-100 text-blue-800">Egresado</Badge>
+            case "Activa":
+                return <Badge variant="default" className="bg-green-100 text-green-800">Activa</Badge>
+            case "Inactiva":
+                return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inactiva</Badge>
+            case "En Revisión":
+                return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">En Revisión</Badge>
             default:
-                return <Badge variant="destructive">Desertor</Badge>
-        }
-    }
-
-    const getRiskBadge = (riesgo: string) => {
-        switch (riesgo) {
-            case "Alto":
-                return <Badge variant="destructive" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Alto</Badge>
-            case "Medio":
-                return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Medio</Badge>
-            case "Bajo":
-                return <Badge variant="secondary" className="bg-green-100 text-green-800">Bajo</Badge>
-            default:
-                return <Badge variant="outline">Sin riesgo</Badge>
+                return <Badge variant="outline">Desconocido</Badge>
         }
     }
 
@@ -122,9 +110,9 @@ export default function EstudiantesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Estudiantes</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">Gestión de Carreras</h1>
                         <p className="text-muted-foreground">
-                            Gestión y administración de estudiantes
+                            Administra los programas académicos y sus configuraciones
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -134,7 +122,7 @@ export default function EstudiantesPage() {
                         </Button>
                         <Button size="sm">
                             <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Estudiante
+                            Nueva Carrera
                         </Button>
                     </div>
                 </div>
@@ -144,7 +132,7 @@ export default function EstudiantesPage() {
                     <CardHeader>
                         <CardTitle>Filtros y Búsqueda</CardTitle>
                         <CardDescription>
-                            Busca y filtra estudiantes por diferentes criterios
+                            Busca y filtra carreras por diferentes criterios
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -153,7 +141,7 @@ export default function EstudiantesPage() {
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Buscar por nombre, número de control o email..."
+                                        placeholder="Buscar por nombre, clave o departamento..."
                                         className="pl-10"
                                     />
                                 </div>
@@ -164,25 +152,25 @@ export default function EstudiantesPage() {
                                     Filtros
                                 </Button>
                                 <Button variant="outline" size="sm">
-                                    Carrera
+                                    Departamento
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                    Modalidad
                                 </Button>
                                 <Button variant="outline" size="sm">
                                     Estatus
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Riesgo
                                 </Button>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Tabla de estudiantes */}
+                {/* Tabla de carreras */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Lista de Estudiantes</CardTitle>
+                        <CardTitle>Lista de Carreras</CardTitle>
                         <CardDescription>
-                            {estudiantes.length} estudiantes registrados en el sistema
+                            {carreras.length} carreras registradas en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -190,33 +178,47 @@ export default function EstudiantesPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Número de Control</TableHead>
                                         <TableHead>Nombre</TableHead>
-                                        <TableHead>Carrera</TableHead>
+                                        <TableHead>Clave</TableHead>
+                                        <TableHead>Departamento</TableHead>
                                         <TableHead>Modalidad</TableHead>
+                                        <TableHead>Duración</TableHead>
+                                        <TableHead>Créditos</TableHead>
+                                        <TableHead>Estudiantes</TableHead>
                                         <TableHead>Estatus</TableHead>
-                                        <TableHead>Riesgo</TableHead>
-                                        <TableHead>Fecha Ingreso</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {estudiantes.map((estudiante) => (
-                                        <TableRow key={estudiante.id}>
-                                            <TableCell className="font-medium">
-                                                {estudiante.numeroControl}
-                                            </TableCell>
+                                    {carreras.map((carrera) => (
+                                        <TableRow key={carrera.id}>
                                             <TableCell>
-                                                <div>
-                                                    <div className="font-medium">{estudiante.nombre}</div>
-                                                    <div className="text-sm text-muted-foreground">{estudiante.email}</div>
+                                                <div className="flex items-center">
+                                                    <GraduationCap className="h-4 w-4 text-blue-600 mr-2" />
+                                                    <div>
+                                                        <div className="font-medium">{carrera.nombre}</div>
+                                                    </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{estudiante.carrera}</TableCell>
-                                            <TableCell>{estudiante.modalidad}</TableCell>
-                                            <TableCell>{getStatusBadge(estudiante.estatus)}</TableCell>
-                                            <TableCell>{getRiskBadge(estudiante.riesgo)}</TableCell>
-                                            <TableCell>{estudiante.fechaIngreso}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{carrera.clave}</Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Building className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {carrera.departamento}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{carrera.modalidad}</TableCell>
+                                            <TableCell>{carrera.duracion}</TableCell>
+                                            <TableCell>{carrera.creditos}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <Users className="h-4 w-4 text-muted-foreground mr-1" />
+                                                    {carrera.estudiantes}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{getStatusBadge(carrera.estatus)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -232,6 +234,10 @@ export default function EstudiantesPage() {
                                                         <DropdownMenuItem>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem>
+                                                            <BookOpen className="mr-2 h-4 w-4" />
+                                                            Ver materias
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem className="text-red-600">
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -252,38 +258,38 @@ export default function EstudiantesPage() {
                 <div className="grid gap-4 md:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Carreras</CardTitle>
+                            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{carreras.length}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Carreras Activas</CardTitle>
+                            <GraduationCap className="h-4 w-4 text-green-600" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{carreras.filter(c => c.estatus === "Activa").length}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Estudiantes</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                            <Users className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.length}</div>
+                            <div className="text-2xl font-bold">{carreras.reduce((acc, curr) => acc + curr.estudiantes, 0)}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Activos</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CardTitle className="text-sm font-medium">Departamentos</CardTitle>
+                            <Building className="h-4 w-4 text-purple-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.estatus === "Activo").length}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Alto Riesgo</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-red-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.riesgo === "Alto").length}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Baja Temporal</CardTitle>
-                            <Clock className="h-4 w-4 text-yellow-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{estudiantes.filter(e => e.estatus === "Baja Temporal").length}</div>
+                            <div className="text-2xl font-bold">{new Set(carreras.map(c => c.departamento)).size}</div>
                         </CardContent>
                     </Card>
                 </div>
