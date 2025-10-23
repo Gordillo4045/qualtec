@@ -92,6 +92,11 @@ const data = {
             icon: Settings,
             items: [
                 {
+                    title: "Departamentos",
+                    url: "/configuracion/departamentos",
+                    icon: Building,
+                },
+                {
                     title: "Carreras",
                     url: "/configuracion/carreras",
                     icon: GraduationCap,
@@ -116,11 +121,7 @@ const data = {
                     url: "/configuracion/ofertas",
                     icon: ClipboardList,
                 },
-                {
-                    title: "Departamentos",
-                    url: "/configuracion/departamentos",
-                    icon: Building,
-                },
+
             ],
         },
     ],
@@ -232,10 +233,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 side="top"
                                 className="w-(--radix-popper-anchor-width) min-w-[200px]"
                             >
-                                <DropdownMenuItem>
-                                    <User className="mr-2" />
-                                    <span>Perfil</span>
-                                </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <button
                                         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
