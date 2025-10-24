@@ -13,6 +13,7 @@ import {
     Settings,
     LogOut,
     User,
+    BrainCog,
     ChevronDown,
     GraduationCap,
     Building,
@@ -73,7 +74,7 @@ const data = {
         {
             title: "Factores",
             url: "/factores",
-            icon: BarChart3,
+            icon: BrainCog,
         },
         {
             title: "Analítica",
