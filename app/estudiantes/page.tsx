@@ -60,6 +60,7 @@ import {
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
@@ -93,6 +94,10 @@ export default function EstudiantesPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedCarrera, setSelectedCarrera] = useState('')
     const [selectedEstatus, setSelectedEstatus] = useState('')
+
+    // Estados de paginación
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage] = useState(10)
 
     const supabase = createClient()
 
@@ -153,6 +158,58 @@ export default function EstudiantesPage() {
         }
 
         setFilteredEstudiantes(filtered)
+        setCurrentPage(1) // Reset a la primera página cuando se filtran datos
+    }
+
+    // Funciones de paginación
+    const totalPages = Math.ceil(filteredEstudiantes.length / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    const currentEstudiantes = filteredEstudiantes.slice(startIndex, endIndex)
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
+    }
+
+    // Función para generar páginas truncadas
+    const generatePageNumbers = () => {
+        const pages = []
+        const maxVisiblePages = 5
+
+        if (totalPages <= maxVisiblePages) {
+            // Si hay 5 páginas o menos, mostrar todas
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i)
+            }
+        } else {
+            // Lógica para paginación truncada
+            if (currentPage <= 3) {
+                // Mostrar páginas 1-5 y luego ...
+                for (let i = 1; i <= 5; i++) {
+                    pages.push(i)
+                }
+                pages.push('...')
+                pages.push(totalPages)
+            } else if (currentPage >= totalPages - 2) {
+                // Mostrar 1, ..., y las últimas 5 páginas
+                pages.push(1)
+                pages.push('...')
+                for (let i = totalPages - 4; i <= totalPages; i++) {
+                    pages.push(i)
+                }
+            } else {
+                // Mostrar 1, ..., páginas alrededor de la actual, ..., última
+                pages.push(1)
+                pages.push('...')
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                    pages.push(i)
+                }
+                pages.push('...')
+                pages.push(totalPages)
+            }
+        }
+
+        return pages
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -673,7 +730,7 @@ export default function EstudiantesPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredEstudiantes.map((estudiante) => (
+                                    {currentEstudiantes.map((estudiante) => (
                                         <TableRow key={estudiante.id_estudiante}>
                                             <TableCell>
                                                 <div className="flex items-center">
@@ -749,6 +806,61 @@ export default function EstudiantesPage() {
                                 </TableBody>
                             </Table>
                         </div>
+
+                        {/* Paginación */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-center space-x-2 py-4">
+                                <Pagination>
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    if (currentPage > 1) {
+                                                        handlePageChange(currentPage - 1)
+                                                    }
+                                                }}
+                                                className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                            />
+                                        </PaginationItem>
+
+                                        {generatePageNumbers().map((page, index) => (
+                                            <PaginationItem key={index}>
+                                                {page === '...' ? (
+                                                    <PaginationEllipsis />
+                                                ) : (
+                                                    <PaginationLink
+                                                        href="#"
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            handlePageChange(page as number)
+                                                        }}
+                                                        isActive={currentPage === page}
+                                                        className="cursor-pointer"
+                                                    >
+                                                        {page}
+                                                    </PaginationLink>
+                                                )}
+                                            </PaginationItem>
+                                        ))}
+
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    if (currentPage < totalPages) {
+                                                        handlePageChange(currentPage + 1)
+                                                    }
+                                                }}
+                                                className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
