@@ -106,6 +106,13 @@ export default function GruposPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        // Validar que tenemos el ID del grupo para edición
+        if (isEditing && !editingGrupo?.id_grupo) {
+            toast.error('Error: No se pudo identificar el grupo a editar')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar grupo existente
@@ -116,7 +123,7 @@ export default function GruposPage() {
                         turno: formData.turno,
                         id_carrera: parseInt(formData.id_carrera)
                     })
-                    .eq('id_grupo', editingGrupo?.id)
+                    .eq('id_grupo', editingGrupo?.id_grupo)
 
                 if (error) throw error
             } else {

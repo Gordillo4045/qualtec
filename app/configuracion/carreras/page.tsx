@@ -97,6 +97,13 @@ export default function CarrerasPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        // Validar que tenemos el ID de la carrera para edición
+        if (isEditing && !editingCarrera?.id_carrera) {
+            toast.error('Error: No se pudo identificar la carrera a editar')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar carrera existente
@@ -107,7 +114,7 @@ export default function CarrerasPage() {
                         clave: formData.clave,
                         id_departamento: parseInt(formData.id_departamento)
                     })
-                    .eq('id_carrera', editingCarrera?.id)
+                    .eq('id_carrera', editingCarrera?.id_carrera)
 
                 if (error) throw error
             } else {

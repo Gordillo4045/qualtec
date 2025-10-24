@@ -86,6 +86,13 @@ export default function DepartamentosPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        // Validar que tenemos el ID del departamento para edición
+        if (isEditing && !editingDepartamento?.id_departamento) {
+            toast.error('Error: No se pudo identificar el departamento a editar')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar departamento existente
@@ -94,7 +101,7 @@ export default function DepartamentosPage() {
                     .update({
                         nombre: formData.nombre
                     })
-                    .eq('id_departamento', editingDepartamento?.id)
+                    .eq('id_departamento', editingDepartamento?.id_departamento)
 
                 if (error) throw error
             } else {

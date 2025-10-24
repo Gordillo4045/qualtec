@@ -139,6 +139,12 @@ export default function PeriodosPage() {
             return
         }
 
+        // Validar que tenemos el ID del periodo para edición
+        if (isEditing && !editingPeriodo?.id_periodo) {
+            toast.error('Error: No se pudo identificar el periodo a editar')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar periodo existente
@@ -150,7 +156,7 @@ export default function PeriodosPage() {
                         inicio: inicioDate.toISOString().split('T')[0],
                         fin: finDate.toISOString().split('T')[0]
                     })
-                    .eq('id_periodo', editingPeriodo?.id)
+                    .eq('id_periodo', editingPeriodo?.id_periodo)
 
                 if (error) throw error
             } else {
