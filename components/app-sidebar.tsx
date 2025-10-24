@@ -121,6 +121,11 @@ const data = {
                     url: "/configuracion/ofertas",
                     icon: ClipboardList,
                 },
+                {
+                    title: "Modalidades",
+                    url: "/configuracion/modalidades",
+                    icon: BookOpen,
+                },
 
             ],
         },
