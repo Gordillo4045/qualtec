@@ -1,8 +1,11 @@
+'use client'
 import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { Field } from "@/components/ui/field"
 import {
     Table,
     TableBody,
@@ -18,6 +21,21 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
     Search,
     Plus,
     Filter,
@@ -26,89 +44,267 @@ import {
     Edit,
     Trash2,
     Eye,
-    BookOpen,
-    Users,
+    User,
+    Mail,
+    Phone,
     Calendar,
+    GraduationCap,
+    Users,
+    BookOpen,
     CheckCircle,
+    AlertTriangle,
     Clock,
-    AlertTriangle
+    Save,
+    X,
+    User2,
+    ClipboardList,
+    Target,
+    TrendingUp
 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { toast } from "sonner"
 
 export default function InscripcionesPage() {
-    const inscripciones = [
-        {
-            id: 1,
-            estudiante: "Juan Pérez García",
-            numeroControl: "2024001",
-            materia: "Cálculo Diferencial",
-            grupo: "A",
-            periodo: "2024-1",
-            calificacion: 85,
-            asistencia: 92,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-15"
-        },
-        {
-            id: 2,
-            estudiante: "María García López",
-            numeroControl: "2024002",
-            materia: "Física I",
-            grupo: "B",
-            periodo: "2024-1",
-            calificacion: 78,
-            asistencia: 88,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-16"
-        },
-        {
-            id: 3,
-            estudiante: "Carlos López Martínez",
-            numeroControl: "2024003",
-            materia: "Programación I",
-            grupo: "A",
-            periodo: "2024-1",
-            calificacion: 65,
-            asistencia: 75,
-            estatus: "Reprobado",
-            fechaInscripcion: "2024-01-17"
-        },
-        {
-            id: 4,
-            estudiante: "Ana Martínez Rodríguez",
-            numeroControl: "2024004",
-            materia: "Química General",
-            grupo: "C",
-            periodo: "2024-1",
-            calificacion: 92,
-            asistencia: 95,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-18"
-        },
-        {
-            id: 5,
-            estudiante: "Luis Hernández Silva",
-            numeroControl: "2024005",
-            materia: "Matemáticas Discretas",
-            grupo: "A",
-            periodo: "2024-1",
-            calificacion: 88,
-            asistencia: 90,
-            estatus: "Aprobado",
-            fechaInscripcion: "2024-01-19"
-        }
-    ]
+    const [isSheetOpen, setIsSheetOpen] = useState(false)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editingInscripcion, setEditingInscripcion] = useState<any>(null)
+    const [formData, setFormData] = useState({
+        id_estudiante: '',
+        id_oferta: '',
+        cal_final: '',
+        asistencia_pct: '',
+        intentos: '1'
+    })
 
-    const getStatusBadge = (estatus: string) => {
-        switch (estatus) {
-            case "Aprobado":
-                return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Aprobado</Badge>
-            case "Reprobado":
-                return <Badge variant="destructive" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Reprobado</Badge>
-            case "En Proceso":
-                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />En Proceso</Badge>
-            default:
-                return <Badge variant="outline">Sin calificar</Badge>
+    const [inscripciones, setInscripciones] = useState<any[]>([])
+    const [filteredInscripciones, setFilteredInscripciones] = useState<any[]>([])
+    const [estudiantes, setEstudiantes] = useState<any[]>([])
+    const [ofertas, setOfertas] = useState<any[]>([])
+    const [searchTerm, setSearchTerm] = useState('')
+    const [selectedEstudiante, setSelectedEstudiante] = useState('')
+    const [selectedOferta, setSelectedOferta] = useState('')
+
+    const supabase = createClient()
+
+    useEffect(() => {
+        fetchInscripciones()
+        fetchEstudiantes()
+        fetchOfertas()
+    }, [])
+
+    useEffect(() => {
+        filterInscripciones()
+    }, [inscripciones, searchTerm, selectedEstudiante, selectedOferta])
+
+    const filterInscripciones = () => {
+        let filtered = inscripciones
+
+        // Filtrar por término de búsqueda
+        if (searchTerm) {
+            filtered = filtered.filter(inscripcion =>
+                inscripcion.estudiante?.nombres.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inscripcion.estudiante?.ap_paterno.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inscripcion.estudiante?.ap_materno.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inscripcion.estudiante?.numero_control.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inscripcion.oferta?.materia?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+            )
         }
+
+        // Filtrar por estudiante
+        if (selectedEstudiante) {
+            filtered = filtered.filter(inscripcion =>
+                inscripcion.id_estudiante === selectedEstudiante
+            )
+        }
+
+        // Filtrar por oferta
+        if (selectedOferta) {
+            filtered = filtered.filter(inscripcion =>
+                inscripcion.id_oferta.toString() === selectedOferta
+            )
+        }
+
+        setFilteredInscripciones(filtered)
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        // Validar campos requeridos
+        if (!formData.id_estudiante || !formData.id_oferta) {
+            toast.error('Por favor selecciona un estudiante y una oferta')
+            return
+        }
+
+        // Validar calificación
+        const calificacion = parseFloat(formData.cal_final)
+        if (formData.cal_final && (calificacion < 0 || calificacion > 100)) {
+            toast.error('La calificación debe estar entre 0 y 100')
+            return
+        }
+
+        // Validar asistencia
+        const asistencia = parseFloat(formData.asistencia_pct)
+        if (formData.asistencia_pct && (asistencia < 0 || asistencia > 100)) {
+            toast.error('La asistencia debe estar entre 0 y 100')
+            return
+        }
+
+        try {
+            if (isEditing) {
+                // Actualizar inscripción existente
+                const { error } = await supabase
+                    .from('inscripcion')
+                    .update({
+                        id_estudiante: formData.id_estudiante,
+                        id_oferta: parseInt(formData.id_oferta),
+                        cal_final: formData.cal_final ? parseFloat(formData.cal_final) : null,
+                        asistencia_pct: formData.asistencia_pct ? parseFloat(formData.asistencia_pct) : null,
+                        intentos: parseInt(formData.intentos)
+                    })
+                    .eq('id_inscripcion', editingInscripcion?.id_inscripcion)
+
+                if (error) throw error
+            } else {
+                // Crear nueva inscripción
+                const { error } = await supabase
+                    .from('inscripcion')
+                    .insert({
+                        id_estudiante: formData.id_estudiante,
+                        id_oferta: parseInt(formData.id_oferta),
+                        cal_final: formData.cal_final ? parseFloat(formData.cal_final) : null,
+                        asistencia_pct: formData.asistencia_pct ? parseFloat(formData.asistencia_pct) : null,
+                        intentos: parseInt(formData.intentos)
+                    })
+
+                if (error) throw error
+            }
+
+            // Recargar datos
+            await fetchInscripciones()
+
+            // Limpiar formulario y cerrar sheet
+            setFormData({
+                id_estudiante: '',
+                id_oferta: '',
+                cal_final: '',
+                asistencia_pct: '',
+                intentos: '1'
+            })
+            setIsSheetOpen(false)
+            setIsEditing(false)
+            setEditingInscripcion(null)
+
+            // Mostrar notificación de éxito
+            toast.success(isEditing ? 'Inscripción actualizada exitosamente' : 'Inscripción creada exitosamente')
+
+        } catch (error) {
+            console.error('Error al guardar inscripción:', error)
+            toast.error('Error al guardar la inscripción. Inténtalo de nuevo.')
+        }
+    }
+
+    const fetchInscripciones = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('inscripcion')
+                .select(`
+                    *,
+                    estudiante:estudiante(*),
+                    oferta:oferta(
+                        *,
+                        materia:materia(*),
+                        periodo:periodo(*),
+                        grupo:grupo(*)
+                    )
+                `)
+                .order('id_inscripcion', { ascending: false })
+
+            if (error) throw error
+            setInscripciones(data || [])
+        } catch (error) {
+            console.error('Error al cargar inscripciones:', error)
+        }
+    }
+
+    const fetchEstudiantes = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('estudiante')
+                .select('*')
+                .order('numero_control', { ascending: true })
+
+            if (error) throw error
+            setEstudiantes(data || [])
+        } catch (error) {
+            console.error('Error al cargar estudiantes:', error)
+        }
+    }
+
+    const fetchOfertas = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('oferta')
+                .select(`
+                    *,
+                    materia:materia(*),
+                    periodo:periodo(*),
+                    grupo:grupo(*)
+                `)
+                .order('id_oferta', { ascending: false })
+
+            if (error) throw error
+            setOfertas(data || [])
+        } catch (error) {
+            console.error('Error al cargar ofertas:', error)
+        }
+    }
+
+    const handleEdit = (inscripcion: any) => {
+        setEditingInscripcion(inscripcion)
+        setFormData({
+            id_estudiante: inscripcion.id_estudiante,
+            id_oferta: inscripcion.id_oferta.toString(),
+            cal_final: inscripcion.cal_final?.toString() || '',
+            asistencia_pct: inscripcion.asistencia_pct?.toString() || '',
+            intentos: inscripcion.intentos?.toString() || '1'
+        })
+        setIsEditing(true)
+        setIsSheetOpen(true)
+    }
+
+    const handleDelete = async (id: number) => {
+        if (confirm('¿Estás seguro de que quieres eliminar esta inscripción?')) {
+            try {
+                const { error } = await supabase
+                    .from('inscripcion')
+                    .delete()
+                    .eq('id_inscripcion', id)
+
+                if (error) throw error
+                await fetchInscripciones()
+                toast.success('Inscripción eliminada exitosamente')
+            } catch (error) {
+                console.error('Error al eliminar inscripción:', error)
+                toast.error('Error al eliminar la inscripción. Inténtalo de nuevo.')
+            }
+        }
+    }
+
+    const getAprobadoBadge = (aprobado: boolean) => {
+        if (aprobado) {
+            return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Aprobado</Badge>
+        } else {
+            return <Badge variant="destructive" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Reprobado</Badge>
+        }
+    }
+
+    const getCalificacionColor = (calificacion: number) => {
+        if (calificacion >= 90) return 'text-green-600'
+        if (calificacion >= 80) return 'text-blue-600'
+        if (calificacion >= 70) return 'text-yellow-600'
+        return 'text-red-600'
     }
 
     return (
@@ -117,9 +313,9 @@ export default function InscripcionesPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Inscripciones</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">Gestión de Inscripciones</h1>
                         <p className="text-muted-foreground">
-                            Control y gestión de inscripciones estudiantiles
+                            Administra las inscripciones de estudiantes a materias
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -127,10 +323,123 @@ export default function InscripcionesPage() {
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>
-                        <Button size="sm">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nueva Inscripción
-                        </Button>
+                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                            <SheetTrigger asChild>
+                                <Button size="sm" onClick={() => {
+                                    setIsEditing(false)
+                                    setEditingInscripcion(null)
+                                    setFormData({
+                                        id_estudiante: '',
+                                        id_oferta: '',
+                                        cal_final: '',
+                                        asistencia_pct: '',
+                                        intentos: '1'
+                                    })
+                                }}>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Nueva Inscripción
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent className="p-4 min-w-[500px]">
+                                <SheetHeader>
+                                    <SheetTitle>
+                                        {isEditing ? 'Editar Inscripción' : 'Nueva Inscripción'}
+                                    </SheetTitle>
+                                    <SheetDescription>
+                                        {isEditing ? 'Modifica los datos de la inscripción' : 'Agrega una nueva inscripción al sistema'}
+                                    </SheetDescription>
+                                </SheetHeader>
+                                <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Field>
+                                            <Label htmlFor="id_estudiante">Estudiante *</Label>
+                                            <Select value={formData.id_estudiante} onValueChange={(value) => setFormData({ ...formData, id_estudiante: value })}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Seleccionar estudiante" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {estudiantes.map((estudiante) => (
+                                                        <SelectItem key={estudiante.id_estudiante} value={estudiante.id_estudiante}>
+                                                            {estudiante.numero_control} - {estudiante.nombres} {estudiante.ap_paterno} {estudiante.ap_materno}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </Field>
+                                        <Field>
+                                            <Label htmlFor="id_oferta">Oferta *</Label>
+                                            <Select value={formData.id_oferta} onValueChange={(value) => setFormData({ ...formData, id_oferta: value })}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Seleccionar oferta" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {ofertas.map((oferta) => (
+                                                        <SelectItem key={oferta.id_oferta} value={oferta.id_oferta.toString()}>
+                                                            {oferta.materia?.nombre} - {oferta.periodo?.etiqueta} - {oferta.grupo?.clave}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </Field>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <Field>
+                                            <Label htmlFor="cal_final">Calificación Final</Label>
+                                            <Input
+                                                id="cal_final"
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.01"
+                                                value={formData.cal_final}
+                                                onChange={(e) => setFormData({ ...formData, cal_final: e.target.value })}
+                                                placeholder="85.5"
+                                            />
+                                        </Field>
+                                        <Field>
+                                            <Label htmlFor="asistencia_pct">Asistencia (%)</Label>
+                                            <Input
+                                                id="asistencia_pct"
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.01"
+                                                value={formData.asistencia_pct}
+                                                onChange={(e) => setFormData({ ...formData, asistencia_pct: e.target.value })}
+                                                placeholder="95.0"
+                                            />
+                                        </Field>
+                                        <Field>
+                                            <Label htmlFor="intentos">Intentos</Label>
+                                            <Input
+                                                id="intentos"
+                                                type="number"
+                                                min="1"
+                                                value={formData.intentos}
+                                                onChange={(e) => setFormData({ ...formData, intentos: e.target.value })}
+                                                placeholder="1"
+                                            />
+                                        </Field>
+                                    </div>
+
+                                    <div className="flex gap-2 pt-4">
+                                        <Button type="submit" className="flex-1">
+                                            <Save className="h-4 w-4 mr-2" />
+                                            {isEditing ? 'Actualizar' : 'Crear'}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setIsSheetOpen(false)}
+                                        >
+                                            <X className="h-4 w-4 mr-2" />
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                </form>
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 </div>
 
@@ -148,8 +457,10 @@ export default function InscripcionesPage() {
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Buscar por estudiante, materia o número de control..."
+                                        placeholder="Buscar por estudiante o materia..."
                                         className="pl-10"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -158,15 +469,30 @@ export default function InscripcionesPage() {
                                     <Filter className="h-4 w-4 mr-2" />
                                     Filtros
                                 </Button>
-                                <Button variant="outline" size="sm">
-                                    Materia
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Periodo
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Estatus
-                                </Button>
+                                <select
+                                    value={selectedEstudiante}
+                                    onChange={(e) => setSelectedEstudiante(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Todos los estudiantes</option>
+                                    {estudiantes.map((estudiante) => (
+                                        <option key={estudiante.id_estudiante} value={estudiante.id_estudiante}>
+                                            {estudiante.numero_control} - {estudiante.nombres} {estudiante.ap_paterno}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={selectedOferta}
+                                    onChange={(e) => setSelectedOferta(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Todas las ofertas</option>
+                                    {ofertas.map((oferta) => (
+                                        <option key={oferta.id_oferta} value={oferta.id_oferta.toString()}>
+                                            {oferta.materia?.nombre} - {oferta.periodo?.etiqueta}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     </CardContent>
@@ -177,7 +503,7 @@ export default function InscripcionesPage() {
                     <CardHeader>
                         <CardTitle>Lista de Inscripciones</CardTitle>
                         <CardDescription>
-                            {inscripciones.length} inscripciones registradas en el sistema
+                            {filteredInscripciones.length} de {inscripciones.length} inscripciones registradas en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -187,38 +513,47 @@ export default function InscripcionesPage() {
                                     <TableRow>
                                         <TableHead>Estudiante</TableHead>
                                         <TableHead>Materia</TableHead>
-                                        <TableHead>Grupo</TableHead>
                                         <TableHead>Periodo</TableHead>
                                         <TableHead>Calificación</TableHead>
                                         <TableHead>Asistencia</TableHead>
-                                        <TableHead>Estatus</TableHead>
+                                        <TableHead>Estado</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {inscripciones.map((inscripcion) => (
-                                        <TableRow key={inscripcion.id}>
-                                            <TableCell>
-                                                <div>
-                                                    <div className="font-medium">{inscripcion.estudiante}</div>
-                                                    <div className="text-sm text-muted-foreground">{inscripcion.numeroControl}</div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{inscripcion.materia}</TableCell>
-                                            <TableCell>{inscripcion.grupo}</TableCell>
-                                            <TableCell>{inscripcion.periodo}</TableCell>
+                                    {filteredInscripciones.map((inscripcion) => (
+                                        <TableRow key={inscripcion.id_inscripcion}>
                                             <TableCell>
                                                 <div className="flex items-center">
-                                                    <span className="font-medium">{inscripcion.calificacion}</span>
-                                                    <span className="text-sm text-muted-foreground ml-1">/100</span>
+                                                    <User2 className="h-4 w-4 text-blue-600 mr-2" />
+                                                    <div>
+                                                        <div className="font-medium">{inscripcion.estudiante?.nombres} {inscripcion.estudiante?.ap_paterno} {inscripcion.estudiante?.ap_materno}</div>
+                                                        <div className="text-sm text-muted-foreground">{inscripcion.estudiante?.numero_control}</div>
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
-                                                    <span className="font-medium">{inscripcion.asistencia}%</span>
+                                                    <BookOpen className="h-4 w-4 text-purple-600 mr-2" />
+                                                    {inscripcion.oferta?.materia?.nombre || 'Sin materia'}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{getStatusBadge(inscripcion.estatus)}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{inscripcion.oferta?.periodo?.etiqueta || 'Sin periodo'}</Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className={`font-medium ${getCalificacionColor(inscripcion.cal_final || 0)}`}>
+                                                    {inscripcion.cal_final ? `${inscripcion.cal_final}` : 'Sin calificación'}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="text-sm">
+                                                    {inscripcion.asistencia_pct ? `${inscripcion.asistencia_pct}%` : 'Sin registro'}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {inscripcion.cal_final ? getAprobadoBadge(inscripcion.aprobado) : <Badge variant="outline">En curso</Badge>}
+                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -231,11 +566,18 @@ export default function InscripcionesPage() {
                                                             <Eye className="mr-2 h-4 w-4" />
                                                             Ver detalles
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEdit(inscripcion)}>
                                                             <Edit className="mr-2 h-4 w-4" />
-                                                            Editar calificación
+                                                            Editar
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-red-600">
+                                                        <DropdownMenuItem>
+                                                            <TrendingUp className="mr-2 h-4 w-4" />
+                                                            Ver progreso
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="text-red-600"
+                                                            onClick={() => handleDelete(inscripcion.id_inscripcion)}
+                                                        >
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Eliminar
                                                         </DropdownMenuItem>
@@ -255,7 +597,7 @@ export default function InscripcionesPage() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Inscripciones</CardTitle>
-                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <ClipboardList className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{inscripciones.length}</div>
@@ -267,27 +609,30 @@ export default function InscripcionesPage() {
                             <CheckCircle className="h-4 w-4 text-green-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{inscripciones.filter(i => i.estatus === "Aprobado").length}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Reprobados</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-red-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{inscripciones.filter(i => i.estatus === "Reprobado").length}</div>
+                            <div className="text-2xl font-bold">{inscripciones.filter(i => i.aprobado).length}</div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Promedio General</CardTitle>
-                            <Users className="h-4 w-4 text-blue-600" />
+                            <Target className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">
-                                {Math.round(inscripciones.reduce((acc, curr) => acc + curr.calificacion, 0) / inscripciones.length)}
+                                {inscripciones.filter(i => i.cal_final).length > 0
+                                    ? (inscripciones.filter(i => i.cal_final).reduce((acc, curr) => acc + curr.cal_final, 0) / inscripciones.filter(i => i.cal_final).length).toFixed(1)
+                                    : 'N/A'
+                                }
                             </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">En Curso</CardTitle>
+                            <Clock className="h-4 w-4 text-purple-600" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{inscripciones.filter(i => !i.cal_final).length}</div>
                         </CardContent>
                     </Card>
                 </div>
