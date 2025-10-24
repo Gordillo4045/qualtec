@@ -1,8 +1,10 @@
+'use client'
 import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import {
     Table,
     TableBody,
@@ -18,6 +20,14 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+import {
     Search,
     Plus,
     Filter,
@@ -29,67 +39,167 @@ import {
     GraduationCap,
     Building,
     Users,
-    BookOpen
+    BookOpen,
+    Save,
+    X
 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { toast } from "sonner"
 
 export default function CarrerasPage() {
-    const carreras = [
-        {
-            id: 1,
-            nombre: "Ingeniería en Sistemas Computacionales",
-            clave: "ISC",
-            departamento: "Sistemas y Computación",
-            modalidad: "Escolarizada",
-            duracion: "8 semestres",
-            creditos: 280,
-            estudiantes: 156,
-            estatus: "Activa"
-        },
-        {
-            id: 2,
-            nombre: "Ingeniería Industrial",
-            clave: "II",
-            departamento: "Industrial",
-            modalidad: "Escolarizada",
-            duracion: "8 semestres",
-            creditos: 275,
-            estudiantes: 142,
-            estatus: "Activa"
-        },
-        {
-            id: 3,
-            nombre: "Ingeniería Mecánica",
-            clave: "IM",
-            departamento: "Mecánica",
-            modalidad: "Escolarizada",
-            duracion: "8 semestres",
-            creditos: 285,
-            estudiantes: 98,
-            estatus: "Activa"
-        },
-        {
-            id: 4,
-            nombre: "Ingeniería Química",
-            clave: "IQ",
-            departamento: "Química",
-            modalidad: "Escolarizada",
-            duracion: "8 semestres",
-            creditos: 290,
-            estudiantes: 87,
-            estatus: "Activa"
-        },
-        {
-            id: 5,
-            nombre: "Ingeniería Electrónica",
-            clave: "IE",
-            departamento: "Electrónica",
-            modalidad: "Escolarizada",
-            duracion: "8 semestres",
-            creditos: 280,
-            estudiantes: 76,
-            estatus: "Activa"
+    const [isSheetOpen, setIsSheetOpen] = useState(false)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editingCarrera, setEditingCarrera] = useState<any>(null)
+    const [departamentos, setDepartamentos] = useState<any[]>([])
+    const [formData, setFormData] = useState({
+        nombre: '',
+        clave: '',
+        id_departamento: ''
+    })
+    const [carreras, setCarreras] = useState<any[]>([])
+    const [filteredCarreras, setFilteredCarreras] = useState<any[]>([])
+    const [searchTerm, setSearchTerm] = useState('')
+    const [selectedDepartamento, setSelectedDepartamento] = useState('')
+
+    const supabase = createClient()
+
+    useEffect(() => {
+        fetchCarreras()
+        fetchDepartamentos()
+    }, [])
+
+    useEffect(() => {
+        filterCarreras()
+    }, [carreras, searchTerm, selectedDepartamento])
+
+    const filterCarreras = () => {
+        let filtered = carreras
+
+        // Filtrar por término de búsqueda
+        if (searchTerm) {
+            filtered = filtered.filter(carrera =>
+                carrera.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                carrera.clave.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                carrera.departamento?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+            )
         }
-    ]
+
+        // Filtrar por departamento
+        if (selectedDepartamento) {
+            filtered = filtered.filter(carrera =>
+                carrera.id_departamento.toString() === selectedDepartamento
+            )
+        }
+
+        setFilteredCarreras(filtered)
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        try {
+            if (isEditing) {
+                // Actualizar carrera existente
+                const { error } = await supabase
+                    .from('carrera')
+                    .update({
+                        nombre: formData.nombre,
+                        clave: formData.clave,
+                        id_departamento: parseInt(formData.id_departamento)
+                    })
+                    .eq('id_carrera', editingCarrera?.id)
+
+                if (error) throw error
+            } else {
+                // Crear nueva carrera
+                const { error } = await supabase
+                    .from('carrera')
+                    .insert({
+                        nombre: formData.nombre,
+                        clave: formData.clave,
+                        id_departamento: parseInt(formData.id_departamento)
+                    })
+
+                if (error) throw error
+            }
+
+            // Recargar datos
+            await fetchCarreras()
+            await fetchDepartamentos()
+
+            // Limpiar formulario y cerrar sheet
+            setFormData({ nombre: '', clave: '', id_departamento: '' })
+            setIsSheetOpen(false)
+            setIsEditing(false)
+            setEditingCarrera(null)
+
+            // Mostrar notificación de éxito
+            toast.success(isEditing ? 'Carrera actualizada exitosamente' : 'Carrera creada exitosamente')
+
+        } catch (error) {
+            console.error('Error al guardar carrera:', error)
+            toast.error('Error al guardar la carrera. Inténtalo de nuevo.')
+        }
+    }
+
+    const fetchCarreras = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('carrera')
+                .select(`
+                    *,
+                    departamento:departamento(nombre)
+                `)
+
+            if (error) throw error
+            setCarreras(data || [])
+        } catch (error) {
+            console.error('Error al cargar carreras:', error)
+        }
+    }
+
+    const fetchDepartamentos = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('departamento')
+                .select('*')
+                .order('nombre')
+
+            if (error) throw error
+            setDepartamentos(data || [])
+        } catch (error) {
+            console.error('Error al cargar departamentos:', error)
+        }
+    }
+
+    const handleEdit = (carrera: any) => {
+        setEditingCarrera(carrera)
+        setFormData({
+            nombre: carrera.nombre,
+            clave: carrera.clave,
+            id_departamento: carrera.id_departamento.toString()
+        })
+        setIsEditing(true)
+        setIsSheetOpen(true)
+    }
+
+    const handleDelete = async (id: number) => {
+        if (confirm('¿Estás seguro de que quieres eliminar esta carrera?')) {
+            try {
+                const { error } = await supabase
+                    .from('carrera')
+                    .delete()
+                    .eq('id_carrera', id)
+
+                if (error) throw error
+                await fetchCarreras()
+                toast.success('Carrera eliminada exitosamente')
+            } catch (error) {
+                console.error('Error al eliminar carrera:', error)
+                toast.error('Error al eliminar la carrera. Inténtalo de nuevo.')
+            }
+        }
+    }
 
     const getStatusBadge = (estatus: string) => {
         switch (estatus) {
@@ -120,10 +230,81 @@ export default function CarrerasPage() {
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>
-                        <Button size="sm">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nueva Carrera
-                        </Button>
+                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                            <SheetTrigger asChild>
+                                <Button size="sm" onClick={() => {
+                                    setIsEditing(false)
+                                    setEditingCarrera(null)
+                                    setFormData({ nombre: '', clave: '', id_departamento: '' })
+                                }}>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Nueva Carrera
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent className="p-4">
+                                <SheetHeader>
+                                    <SheetTitle>
+                                        {isEditing ? 'Editar Carrera' : 'Nueva Carrera'}
+                                    </SheetTitle>
+                                    <SheetDescription>
+                                        {isEditing ? 'Modifica los datos de la carrera' : 'Agrega una nueva carrera al sistema'}
+                                    </SheetDescription>
+                                </SheetHeader>
+                                <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="nombre">Nombre de la Carrera</Label>
+                                        <Input
+                                            id="nombre"
+                                            value={formData.nombre}
+                                            onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                                            placeholder="Ing. Sistemas Computacionales"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="clave">Clave</Label>
+                                        <Input
+                                            id="clave"
+                                            value={formData.clave}
+                                            onChange={(e) => setFormData({ ...formData, clave: e.target.value })}
+                                            placeholder="ISC"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="departamento">Departamento</Label>
+                                        <select
+                                            id="departamento"
+                                            value={formData.id_departamento}
+                                            onChange={(e) => setFormData({ ...formData, id_departamento: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            required
+                                        >
+                                            <option value="">Selecciona un departamento</option>
+                                            {departamentos.map((dept) => (
+                                                <option key={dept.id_departamento} value={dept.id_departamento}>
+                                                    {dept.nombre}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-2 pt-4">
+                                        <Button type="submit" className="flex-1">
+                                            <Save className="h-4 w-4 mr-2" />
+                                            {isEditing ? 'Actualizar' : 'Crear'}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setIsSheetOpen(false)}
+                                        >
+                                            <X className="h-4 w-4 mr-2" />
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                </form>
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 </div>
 
@@ -143,6 +324,8 @@ export default function CarrerasPage() {
                                     <Input
                                         placeholder="Buscar por nombre, clave o departamento..."
                                         className="pl-10"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -151,9 +334,18 @@ export default function CarrerasPage() {
                                     <Filter className="h-4 w-4 mr-2" />
                                     Filtros
                                 </Button>
-                                <Button variant="outline" size="sm">
-                                    Departamento
-                                </Button>
+                                <select
+                                    value={selectedDepartamento}
+                                    onChange={(e) => setSelectedDepartamento(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Todos los departamentos</option>
+                                    {departamentos.map((dept) => (
+                                        <option key={dept.id_departamento} value={dept.id_departamento}>
+                                            {dept.nombre}
+                                        </option>
+                                    ))}
+                                </select>
                                 <Button variant="outline" size="sm">
                                     Modalidad
                                 </Button>
@@ -170,7 +362,7 @@ export default function CarrerasPage() {
                     <CardHeader>
                         <CardTitle>Lista de Carreras</CardTitle>
                         <CardDescription>
-                            {carreras.length} carreras registradas en el sistema
+                            {filteredCarreras.length} de {carreras.length} carreras registradas en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -190,8 +382,8 @@ export default function CarrerasPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {carreras.map((carrera) => (
-                                        <TableRow key={carrera.id}>
+                                    {filteredCarreras.map((carrera) => (
+                                        <TableRow key={carrera.id_carrera}>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <GraduationCap className="h-4 w-4 text-blue-600 mr-2" />
@@ -206,19 +398,19 @@ export default function CarrerasPage() {
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <Building className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {carrera.departamento}
+                                                    {carrera.departamento?.nombre || 'Sin departamento'}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{carrera.modalidad}</TableCell>
-                                            <TableCell>{carrera.duracion}</TableCell>
-                                            <TableCell>{carrera.creditos}</TableCell>
+                                            <TableCell>-</TableCell>
+                                            <TableCell>-</TableCell>
+                                            <TableCell>-</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <Users className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {carrera.estudiantes}
+                                                    -
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{getStatusBadge(carrera.estatus)}</TableCell>
+                                            <TableCell><Badge variant="outline">Activa</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -231,7 +423,7 @@ export default function CarrerasPage() {
                                                             <Eye className="mr-2 h-4 w-4" />
                                                             Ver detalles
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEdit(carrera)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
                                                         </DropdownMenuItem>
@@ -239,7 +431,10 @@ export default function CarrerasPage() {
                                                             <BookOpen className="mr-2 h-4 w-4" />
                                                             Ver materias
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-red-600">
+                                                        <DropdownMenuItem
+                                                            className="text-red-600"
+                                                            onClick={() => handleDelete(carrera.id_carrera)}
+                                                        >
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Eliminar
                                                         </DropdownMenuItem>
@@ -280,7 +475,7 @@ export default function CarrerasPage() {
                             <Users className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{carreras.reduce((acc, curr) => acc + curr.estudiantes, 0)}</div>
+                            <div className="text-2xl font-bold">{carreras.length}</div>
                         </CardContent>
                     </Card>
                     <Card>

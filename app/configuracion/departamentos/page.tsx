@@ -1,8 +1,10 @@
+'use client'
 import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import {
     Table,
     TableBody,
@@ -18,6 +20,14 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+import {
     Search,
     Plus,
     Filter,
@@ -32,90 +42,134 @@ import {
     GraduationCap,
     Phone,
     Mail,
-    MapPin
+    MapPin,
+    Save,
+    X
 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { toast } from "sonner"
 
 export default function DepartamentosPage() {
-    const departamentos = [
-        {
-            id: 1,
-            nombre: "Sistemas y Computación",
-            clave: "SYC",
-            director: "Dr. Juan Pérez García",
-            telefono: "664-123-4567",
-            email: "syc@itt.edu.mx",
-            ubicacion: "Edificio A, 2do piso",
-            carreras: 2,
-            materias: 25,
-            docentes: 15,
-            estatus: "Activo"
-        },
-        {
-            id: 2,
-            nombre: "Industrial",
-            clave: "IND",
-            director: "Dra. María García López",
-            telefono: "664-234-5678",
-            email: "industrial@itt.edu.mx",
-            ubicacion: "Edificio B, 1er piso",
-            carreras: 1,
-            materias: 18,
-            docentes: 12,
-            estatus: "Activo"
-        },
-        {
-            id: 3,
-            nombre: "Mecánica",
-            clave: "MEC",
-            director: "Dr. Carlos López Martínez",
-            telefono: "664-345-6789",
-            email: "mecanica@itt.edu.mx",
-            ubicacion: "Edificio C, 3er piso",
-            carreras: 1,
-            materias: 20,
-            docentes: 10,
-            estatus: "Activo"
-        },
-        {
-            id: 4,
-            nombre: "Química",
-            clave: "QUI",
-            director: "Dra. Ana Martínez Rodríguez",
-            telefono: "664-456-7890",
-            email: "quimica@itt.edu.mx",
-            ubicacion: "Edificio D, 1er piso",
-            carreras: 1,
-            materias: 15,
-            docentes: 8,
-            estatus: "Activo"
-        },
-        {
-            id: 5,
-            nombre: "Electrónica",
-            clave: "ELE",
-            director: "Dr. Luis Hernández Silva",
-            telefono: "664-567-8901",
-            email: "electronica@itt.edu.mx",
-            ubicacion: "Edificio E, 2do piso",
-            carreras: 1,
-            materias: 22,
-            docentes: 14,
-            estatus: "Activo"
-        },
-        {
-            id: 6,
-            nombre: "Matemáticas",
-            clave: "MAT",
-            director: "Dr. Roberto Sánchez Díaz",
-            telefono: "664-678-9012",
-            email: "matematicas@itt.edu.mx",
-            ubicacion: "Edificio F, 1er piso",
-            carreras: 0,
-            materias: 12,
-            docentes: 6,
-            estatus: "Activo"
+    const [isSheetOpen, setIsSheetOpen] = useState(false)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editingDepartamento, setEditingDepartamento] = useState<any>(null)
+    const [formData, setFormData] = useState({
+        nombre: ''
+    })
+    const [departamentos, setDepartamentos] = useState<any[]>([])
+    const [filteredDepartamentos, setFilteredDepartamentos] = useState<any[]>([])
+    const [searchTerm, setSearchTerm] = useState('')
+
+    const supabase = createClient()
+
+    useEffect(() => {
+        fetchDepartamentos()
+    }, [])
+
+    useEffect(() => {
+        filterDepartamentos()
+    }, [departamentos, searchTerm])
+
+    const filterDepartamentos = () => {
+        let filtered = departamentos
+
+        // Filtrar por término de búsqueda
+        if (searchTerm) {
+            filtered = filtered.filter(departamento =>
+                departamento.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+            )
         }
-    ]
+
+        setFilteredDepartamentos(filtered)
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        try {
+            if (isEditing) {
+                // Actualizar departamento existente
+                const { error } = await supabase
+                    .from('departamento')
+                    .update({
+                        nombre: formData.nombre
+                    })
+                    .eq('id_departamento', editingDepartamento?.id)
+
+                if (error) throw error
+            } else {
+                // Crear nuevo departamento
+                const { error } = await supabase
+                    .from('departamento')
+                    .insert({
+                        nombre: formData.nombre
+                    })
+
+                if (error) throw error
+            }
+
+            // Recargar datos
+            await fetchDepartamentos()
+
+            // Limpiar formulario y cerrar sheet
+            setFormData({ nombre: '' })
+            setIsSheetOpen(false)
+            setIsEditing(false)
+            setEditingDepartamento(null)
+
+            // Mostrar notificación de éxito
+            toast.success(isEditing ? 'Departamento actualizado exitosamente' : 'Departamento creado exitosamente')
+
+        } catch (error) {
+            console.error('Error al guardar departamento:', error)
+            toast.error('Error al guardar el departamento. Inténtalo de nuevo.')
+        }
+    }
+
+    const fetchDepartamentos = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('departamento')
+                .select(`
+                    *,
+                    carreras:carrera(count),
+                    materias:materia(count)
+                `)
+                .order('nombre')
+
+            if (error) throw error
+            setDepartamentos(data || [])
+        } catch (error) {
+            console.error('Error al cargar departamentos:', error)
+        }
+    }
+
+    const handleEdit = (departamento: any) => {
+        setEditingDepartamento(departamento)
+        setFormData({
+            nombre: departamento.nombre
+        })
+        setIsEditing(true)
+        setIsSheetOpen(true)
+    }
+
+    const handleDelete = async (id: number) => {
+        if (confirm('¿Estás seguro de que quieres eliminar este departamento?')) {
+            try {
+                const { error } = await supabase
+                    .from('departamento')
+                    .delete()
+                    .eq('id_departamento', id)
+
+                if (error) throw error
+                await fetchDepartamentos()
+                toast.success('Departamento eliminado exitosamente')
+            } catch (error) {
+                console.error('Error al eliminar departamento:', error)
+                toast.error('Error al eliminar el departamento. Inténtalo de nuevo.')
+            }
+        }
+    }
 
     const getStatusBadge = (estatus: string) => {
         switch (estatus) {
@@ -146,10 +200,54 @@ export default function DepartamentosPage() {
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>
-                        <Button size="sm">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Departamento
-                        </Button>
+                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                            <SheetTrigger asChild>
+                                <Button size="sm" onClick={() => {
+                                    setIsEditing(false)
+                                    setEditingDepartamento(null)
+                                    setFormData({ nombre: '' })
+                                }}>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Nuevo Departamento
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent className="p-4">
+                                <SheetHeader>
+                                    <SheetTitle>
+                                        {isEditing ? 'Editar Departamento' : 'Nuevo Departamento'}
+                                    </SheetTitle>
+                                    <SheetDescription>
+                                        {isEditing ? 'Modifica los datos del departamento' : 'Agrega un nuevo departamento al sistema'}
+                                    </SheetDescription>
+                                </SheetHeader>
+                                <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="nombre">Nombre del Departamento</Label>
+                                        <Input
+                                            id="nombre"
+                                            value={formData.nombre}
+                                            onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                                            placeholder="Sistemas y Computación"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 pt-4">
+                                        <Button type="submit" className="flex-1">
+                                            <Save className="h-4 w-4 mr-2" />
+                                            {isEditing ? 'Actualizar' : 'Crear'}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setIsSheetOpen(false)}
+                                        >
+                                            <X className="h-4 w-4 mr-2" />
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                </form>
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 </div>
 
@@ -167,8 +265,10 @@ export default function DepartamentosPage() {
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Buscar por nombre, clave o director..."
+                                        placeholder="Buscar por nombre..."
                                         className="pl-10"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -196,7 +296,7 @@ export default function DepartamentosPage() {
                     <CardHeader>
                         <CardTitle>Lista de Departamentos</CardTitle>
                         <CardDescription>
-                            {departamentos.length} departamentos registrados en el sistema
+                            {filteredDepartamentos.length} de {departamentos.length} departamentos registrados en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -205,71 +305,34 @@ export default function DepartamentosPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Departamento</TableHead>
-                                        <TableHead>Director</TableHead>
-                                        <TableHead>Contacto</TableHead>
-                                        <TableHead>Ubicación</TableHead>
                                         <TableHead>Carreras</TableHead>
                                         <TableHead>Materias</TableHead>
-                                        <TableHead>Docentes</TableHead>
-                                        <TableHead>Estatus</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {departamentos.map((departamento) => (
-                                        <TableRow key={departamento.id}>
+                                    {filteredDepartamentos.map((departamento) => (
+                                        <TableRow key={departamento.id_departamento}>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <Building className="h-4 w-4 text-indigo-600 mr-2" />
                                                     <div>
                                                         <div className="font-medium">{departamento.nombre}</div>
-                                                        <div className="text-sm text-muted-foreground">{departamento.clave}</div>
                                                     </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <Users className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {departamento.director}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center text-sm">
-                                                        <Phone className="h-3 w-3 text-muted-foreground mr-1" />
-                                                        {departamento.telefono}
-                                                    </div>
-                                                    <div className="flex items-center text-sm">
-                                                        <Mail className="h-3 w-3 text-muted-foreground mr-1" />
-                                                        {departamento.email}
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <MapPin className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {departamento.ubicacion}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <GraduationCap className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {departamento.carreras}
+                                                    {departamento.carreras?.[0]?.count || 0}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <BookMarked className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {departamento.materias}
+                                                    {departamento.materias?.[0]?.count || 0}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <Users className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {departamento.docentes}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{getStatusBadge(departamento.estatus)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -282,7 +345,7 @@ export default function DepartamentosPage() {
                                                             <Eye className="mr-2 h-4 w-4" />
                                                             Ver detalles
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEdit(departamento)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
                                                         </DropdownMenuItem>
@@ -298,7 +361,10 @@ export default function DepartamentosPage() {
                                                             <Users className="mr-2 h-4 w-4" />
                                                             Ver docentes
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-red-600">
+                                                        <DropdownMenuItem
+                                                            className="text-red-600"
+                                                            onClick={() => handleDelete(departamento.id_departamento)}
+                                                        >
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Eliminar
                                                         </DropdownMenuItem>
@@ -335,11 +401,11 @@ export default function DepartamentosPage() {
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Docentes</CardTitle>
+                            <CardTitle className="text-sm font-medium">Total Carreras</CardTitle>
                             <Users className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{departamentos.reduce((acc, curr) => acc + curr.docentes, 0)}</div>
+                            <div className="text-2xl font-bold">{departamentos.reduce((acc, curr) => acc + (curr.carreras?.[0]?.count || 0), 0)}</div>
                         </CardContent>
                     </Card>
                     <Card>
@@ -348,7 +414,7 @@ export default function DepartamentosPage() {
                             <BookMarked className="h-4 w-4 text-purple-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{departamentos.reduce((acc, curr) => acc + curr.materias, 0)}</div>
+                            <div className="text-2xl font-bold">{departamentos.reduce((acc, curr) => acc + (curr.materias?.[0]?.count || 0), 0)}</div>
                         </CardContent>
                     </Card>
                 </div>

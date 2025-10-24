@@ -1,8 +1,10 @@
+'use client'
 import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import {
     Table,
     TableBody,
@@ -18,6 +20,14 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+import {
     Search,
     Plus,
     Filter,
@@ -30,78 +40,173 @@ import {
     GraduationCap,
     Clock,
     Calendar,
-    User
+    User,
+    Save,
+    X
 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { toast } from "sonner"
 
 export default function GruposPage() {
-    const grupos = [
-        {
-            id: 1,
-            clave: "ISC-1A",
-            carrera: "Ing. Sistemas",
-            turno: "Matutino",
-            semestre: 1,
-            capacidad: 30,
-            estudiantes: 28,
-            periodo: "2024-1",
-            estatus: "Activo"
-        },
-        {
-            id: 2,
-            clave: "ISC-1B",
-            carrera: "Ing. Sistemas",
-            turno: "Vespertino",
-            semestre: 1,
-            capacidad: 30,
-            estudiantes: 25,
-            periodo: "2024-1",
-            estatus: "Activo"
-        },
-        {
-            id: 3,
-            clave: "II-1A",
-            carrera: "Ing. Industrial",
-            turno: "Matutino",
-            semestre: 1,
-            capacidad: 35,
-            estudiantes: 32,
-            periodo: "2024-1",
-            estatus: "Activo"
-        },
-        {
-            id: 4,
-            clave: "IM-3A",
-            carrera: "Ing. Mecánica",
-            turno: "Matutino",
-            semestre: 3,
-            capacidad: 25,
-            estudiantes: 22,
-            periodo: "2024-1",
-            estatus: "Activo"
-        },
-        {
-            id: 5,
-            clave: "IQ-1A",
-            carrera: "Ing. Química",
-            turno: "Matutino",
-            semestre: 1,
-            capacidad: 20,
-            estudiantes: 18,
-            periodo: "2024-1",
-            estatus: "Activo"
-        }
-    ]
+    const [isSheetOpen, setIsSheetOpen] = useState(false)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editingGrupo, setEditingGrupo] = useState<any>(null)
+    const [carreras, setCarreras] = useState<any[]>([])
+    const [formData, setFormData] = useState({
+        clave: '',
+        turno: '',
+        id_carrera: ''
+    })
+    const [grupos, setGrupos] = useState<any[]>([])
+    const [filteredGrupos, setFilteredGrupos] = useState<any[]>([])
+    const [searchTerm, setSearchTerm] = useState('')
+    const [selectedCarrera, setSelectedCarrera] = useState('')
+    const [selectedTurno, setSelectedTurno] = useState('')
 
-    const getStatusBadge = (estatus: string) => {
-        switch (estatus) {
-            case "Activo":
-                return <Badge variant="default" className="bg-green-100 text-green-800">Activo</Badge>
-            case "Inactivo":
-                return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inactivo</Badge>
-            case "Completo":
-                return <Badge variant="outline" className="bg-blue-100 text-blue-800">Completo</Badge>
-            default:
-                return <Badge variant="outline">Desconocido</Badge>
+    const supabase = createClient()
+
+    useEffect(() => {
+        fetchGrupos()
+        fetchCarreras()
+    }, [])
+
+    useEffect(() => {
+        filterGrupos()
+    }, [grupos, searchTerm, selectedCarrera, selectedTurno])
+
+    const filterGrupos = () => {
+        let filtered = grupos
+
+        // Filtrar por término de búsqueda
+        if (searchTerm) {
+            filtered = filtered.filter(grupo =>
+                grupo.clave.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                grupo.carrera?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                grupo.turno.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+        }
+
+        // Filtrar por carrera
+        if (selectedCarrera) {
+            filtered = filtered.filter(grupo =>
+                grupo.id_carrera.toString() === selectedCarrera
+            )
+        }
+
+        // Filtrar por turno
+        if (selectedTurno) {
+            filtered = filtered.filter(grupo =>
+                grupo.turno === selectedTurno
+            )
+        }
+
+        setFilteredGrupos(filtered)
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        try {
+            if (isEditing) {
+                // Actualizar grupo existente
+                const { error } = await supabase
+                    .from('grupo')
+                    .update({
+                        clave: formData.clave,
+                        turno: formData.turno,
+                        id_carrera: parseInt(formData.id_carrera)
+                    })
+                    .eq('id_grupo', editingGrupo?.id)
+
+                if (error) throw error
+            } else {
+                // Crear nuevo grupo
+                const { error } = await supabase
+                    .from('grupo')
+                    .insert({
+                        clave: formData.clave,
+                        turno: formData.turno,
+                        id_carrera: parseInt(formData.id_carrera)
+                    })
+
+                if (error) throw error
+            }
+
+            // Recargar datos
+            await fetchGrupos()
+            await fetchCarreras()
+
+            // Limpiar formulario y cerrar sheet
+            setFormData({ clave: '', turno: '', id_carrera: '' })
+            setIsSheetOpen(false)
+            setIsEditing(false)
+            setEditingGrupo(null)
+
+            // Mostrar notificación de éxito
+            toast.success(isEditing ? 'Grupo actualizado exitosamente' : 'Grupo creado exitosamente')
+
+        } catch (error) {
+            console.error('Error al guardar grupo:', error)
+            toast.error('Error al guardar el grupo. Inténtalo de nuevo.')
+        }
+    }
+
+    const fetchGrupos = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('grupo')
+                .select(`
+                    *,
+                    carrera:carrera(nombre)
+                `)
+
+            if (error) throw error
+            setGrupos(data || [])
+        } catch (error) {
+            console.error('Error al cargar grupos:', error)
+        }
+    }
+
+    const fetchCarreras = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('carrera')
+                .select('*')
+                .order('nombre')
+
+            if (error) throw error
+            setCarreras(data || [])
+        } catch (error) {
+            console.error('Error al cargar carreras:', error)
+        }
+    }
+
+    const handleEdit = (grupo: any) => {
+        setEditingGrupo(grupo)
+        setFormData({
+            clave: grupo.clave,
+            turno: grupo.turno,
+            id_carrera: grupo.id_carrera.toString()
+        })
+        setIsEditing(true)
+        setIsSheetOpen(true)
+    }
+
+    const handleDelete = async (id: number) => {
+        if (confirm('¿Estás seguro de que quieres eliminar este grupo?')) {
+            try {
+                const { error } = await supabase
+                    .from('grupo')
+                    .delete()
+                    .eq('id_grupo', id)
+
+                if (error) throw error
+                await fetchGrupos()
+                toast.success('Grupo eliminado exitosamente')
+            } catch (error) {
+                console.error('Error al eliminar grupo:', error)
+                toast.error('Error al eliminar el grupo. Inténtalo de nuevo.')
+            }
         }
     }
 
@@ -134,10 +239,87 @@ export default function GruposPage() {
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>
-                        <Button size="sm">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Grupo
-                        </Button>
+                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                            <SheetTrigger asChild>
+                                <Button size="sm" onClick={() => {
+                                    setIsEditing(false)
+                                    setEditingGrupo(null)
+                                    setFormData({ clave: '', turno: '', id_carrera: '' })
+                                }}>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Nuevo Grupo
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent className="p-4">
+                                <SheetHeader>
+                                    <SheetTitle>
+                                        {isEditing ? 'Editar Grupo' : 'Nuevo Grupo'}
+                                    </SheetTitle>
+                                    <SheetDescription>
+                                        {isEditing ? 'Modifica los datos del grupo' : 'Agrega un nuevo grupo al sistema'}
+                                    </SheetDescription>
+                                </SheetHeader>
+                                <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="clave">Clave del Grupo</Label>
+                                        <Input
+                                            id="clave"
+                                            value={formData.clave}
+                                            onChange={(e) => setFormData({ ...formData, clave: e.target.value })}
+                                            placeholder="ISC-1A"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="turno">Turno</Label>
+                                        <select
+                                            id="turno"
+                                            value={formData.turno}
+                                            onChange={(e) => setFormData({ ...formData, turno: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            required
+                                        >
+                                            <option value="">Selecciona un turno</option>
+                                            <option value="Matutino">Matutino</option>
+                                            <option value="Vespertino">Vespertino</option>
+                                            <option value="SemiPresencial">Semi Presencial</option>
+                                            <option value="Virtual">Virtual</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="carrera">Carrera</Label>
+                                        <select
+                                            id="carrera"
+                                            value={formData.id_carrera}
+                                            onChange={(e) => setFormData({ ...formData, id_carrera: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            required
+                                        >
+                                            <option value="">Selecciona una carrera</option>
+                                            {carreras.map((carrera) => (
+                                                <option key={carrera.id_carrera} value={carrera.id_carrera}>
+                                                    {carrera.nombre}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-2 pt-4">
+                                        <Button type="submit" className="flex-1">
+                                            <Save className="h-4 w-4 mr-2" />
+                                            {isEditing ? 'Actualizar' : 'Crear'}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setIsSheetOpen(false)}
+                                        >
+                                            <X className="h-4 w-4 mr-2" />
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                </form>
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 </div>
 
@@ -157,6 +339,8 @@ export default function GruposPage() {
                                     <Input
                                         placeholder="Buscar por clave, carrera o turno..."
                                         className="pl-10"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -165,12 +349,29 @@ export default function GruposPage() {
                                     <Filter className="h-4 w-4 mr-2" />
                                     Filtros
                                 </Button>
-                                <Button variant="outline" size="sm">
-                                    Carrera
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Turno
-                                </Button>
+                                <select
+                                    value={selectedCarrera}
+                                    onChange={(e) => setSelectedCarrera(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Todas las carreras</option>
+                                    {carreras.map((carrera) => (
+                                        <option key={carrera.id_carrera} value={carrera.id_carrera}>
+                                            {carrera.nombre}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={selectedTurno}
+                                    onChange={(e) => setSelectedTurno(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Todos los turnos</option>
+                                    <option value="Matutino">Matutino</option>
+                                    <option value="Vespertino">Vespertino</option>
+                                    <option value="Nocturno">Nocturno</option>
+                                    <option value="Mixto">Mixto</option>
+                                </select>
                                 <Button variant="outline" size="sm">
                                     Semestre
                                 </Button>
@@ -184,7 +385,7 @@ export default function GruposPage() {
                     <CardHeader>
                         <CardTitle>Lista de Grupos</CardTitle>
                         <CardDescription>
-                            {grupos.length} grupos registrados en el sistema
+                            {filteredGrupos.length} de {grupos.length} grupos registrados en el sistema
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -195,17 +396,12 @@ export default function GruposPage() {
                                         <TableHead>Clave</TableHead>
                                         <TableHead>Carrera</TableHead>
                                         <TableHead>Turno</TableHead>
-                                        <TableHead>Semestre</TableHead>
-                                        <TableHead>Capacidad</TableHead>
-                                        <TableHead>Estudiantes</TableHead>
-                                        <TableHead>Periodo</TableHead>
-                                        <TableHead>Estatus</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {grupos.map((grupo) => (
-                                        <TableRow key={grupo.id}>
+                                    {filteredGrupos.map((grupo) => (
+                                        <TableRow key={grupo.id_grupo}>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <Users2 className="h-4 w-4 text-purple-600 mr-2" />
@@ -215,25 +411,10 @@ export default function GruposPage() {
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <GraduationCap className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {grupo.carrera}
+                                                    {grupo.carrera?.nombre || 'Sin carrera'}
                                                 </div>
                                             </TableCell>
                                             <TableCell>{getTurnoBadge(grupo.turno)}</TableCell>
-                                            <TableCell>{grupo.semestre}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <User className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {grupo.capacidad}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <Users2 className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    {grupo.estudiantes}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{grupo.periodo}</TableCell>
-                                            <TableCell>{getStatusBadge(grupo.estatus)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -246,7 +427,7 @@ export default function GruposPage() {
                                                             <Eye className="mr-2 h-4 w-4" />
                                                             Ver detalles
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEdit(grupo)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
                                                         </DropdownMenuItem>
@@ -258,7 +439,10 @@ export default function GruposPage() {
                                                             <Calendar className="mr-2 h-4 w-4" />
                                                             Ver horario
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-red-600">
+                                                        <DropdownMenuItem
+                                                            className="text-red-600"
+                                                            onClick={() => handleDelete(grupo.id_grupo)}
+                                                        >
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Eliminar
                                                         </DropdownMenuItem>
@@ -299,7 +483,7 @@ export default function GruposPage() {
                             <User className="h-4 w-4 text-blue-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{grupos.reduce((acc, curr) => acc + curr.estudiantes, 0)}</div>
+                            <div className="text-2xl font-bold">{grupos.length}</div>
                         </CardContent>
                     </Card>
                     <Card>
@@ -308,7 +492,7 @@ export default function GruposPage() {
                             <Clock className="h-4 w-4 text-purple-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{grupos.reduce((acc, curr) => acc + curr.capacidad, 0)}</div>
+                            <div className="text-2xl font-bold">{grupos.length * 30}</div>
                         </CardContent>
                     </Card>
                 </div>
