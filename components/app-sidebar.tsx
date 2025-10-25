@@ -127,6 +127,11 @@ const data = {
                     url: "/configuracion/modalidades",
                     icon: BookOpen,
                 },
+                {
+                    title: "Factores",
+                    url: "/configuracion/factores",
+                    icon: BrainCog,
+                },
 
             ],
         },
