@@ -333,7 +333,7 @@ export default function InscripcionesPage() {
                     .eq('id_oferta', parseInt(formData.id_oferta))
                     .single()
 
-                if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+                if (checkError && checkError.code !== 'PGRST116') {
                     console.error('Error al verificar inscripción existente:', checkError)
                     throw checkError
                 }
