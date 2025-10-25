@@ -60,7 +60,10 @@ import {
     User2,
     ClipboardList,
     Target,
-    TrendingUp
+    TrendingUp,
+    PlusCircle,
+    MinusCircle,
+    FileText
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
@@ -78,10 +81,21 @@ export default function InscripcionesPage() {
         intentos: '1'
     })
 
+    // Estados para manejar unidades en el sheet
+    const [unidadesData, setUnidadesData] = useState<{
+        [key: number]: {
+            calificacion: string,
+            asistio: boolean | null
+        }
+    }>({})
+
     const [inscripciones, setInscripciones] = useState<any[]>([])
     const [filteredInscripciones, setFilteredInscripciones] = useState<any[]>([])
     const [estudiantes, setEstudiantes] = useState<any[]>([])
     const [ofertas, setOfertas] = useState<any[]>([])
+    const [filteredOfertas, setFilteredOfertas] = useState<any[]>([])
+    const [materiaUnidades, setMateriaUnidades] = useState<any[]>([])
+    const [estudianteUnidades, setEstudianteUnidades] = useState<any[]>([])
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedEstudiante, setSelectedEstudiante] = useState('')
     const [selectedOferta, setSelectedOferta] = useState('')
@@ -101,6 +115,61 @@ export default function InscripcionesPage() {
     useEffect(() => {
         filterInscripciones()
     }, [inscripciones, searchTerm, selectedEstudiante, selectedOferta])
+
+    useEffect(() => {
+        filterOfertasByCarrera()
+    }, [formData.id_estudiante, ofertas, estudiantes])
+
+    useEffect(() => {
+        if (formData.id_oferta) {
+            const ofertaSeleccionada = ofertas.find(o => o.id_oferta.toString() === formData.id_oferta)
+            if (ofertaSeleccionada?.materia?.id_materia) {
+                fetchMateriaUnidades(ofertaSeleccionada.materia.id_materia)
+            }
+        }
+    }, [formData.id_oferta, ofertas])
+
+    // Cargar unidades existentes cuando se edita
+    useEffect(() => {
+        if (isEditing && editingInscripcion && estudianteUnidades.length > 0) {
+            const unidadesExistentes: {
+                [key: number]: {
+                    calificacion: string,
+                    asistio: boolean | null
+                }
+            } = {}
+
+            estudianteUnidades.forEach(eu => {
+                unidadesExistentes[eu.id_materia_unidad] = {
+                    calificacion: eu.calificacion?.toString() || '',
+                    asistio: eu.asistio
+                }
+            })
+
+            setUnidadesData(unidadesExistentes)
+        }
+    }, [isEditing, editingInscripcion, estudianteUnidades])
+
+    // Cargar unidades existentes cuando se cargan las unidades del estudiante
+    useEffect(() => {
+        if (isEditing && estudianteUnidades.length > 0) {
+            const unidadesExistentes: {
+                [key: number]: {
+                    calificacion: string,
+                    asistio: boolean | null
+                }
+            } = {}
+
+            estudianteUnidades.forEach(eu => {
+                unidadesExistentes[eu.id_materia_unidad] = {
+                    calificacion: eu.calificacion?.toString() || '',
+                    asistio: eu.asistio
+                }
+            })
+
+            setUnidadesData(unidadesExistentes)
+        }
+    }, [estudianteUnidades, isEditing])
 
     const filterInscripciones = () => {
         let filtered = inscripciones
@@ -132,6 +201,25 @@ export default function InscripcionesPage() {
 
         setFilteredInscripciones(filtered)
         setCurrentPage(1) // Reset a la primera página cuando se filtran datos
+    }
+
+    const filterOfertasByCarrera = () => {
+        if (!formData.id_estudiante) {
+            setFilteredOfertas([])
+            return
+        }
+
+        const estudianteSeleccionado = estudiantes.find(e => e.id_estudiante === formData.id_estudiante)
+        if (!estudianteSeleccionado) {
+            setFilteredOfertas([])
+            return
+        }
+
+        const ofertasFiltradas = ofertas.filter(oferta =>
+            oferta.grupo?.id_carrera === estudianteSeleccionado.id_carrera
+        )
+
+        setFilteredOfertas(ofertasFiltradas)
     }
 
     // Funciones de paginación
@@ -194,6 +282,12 @@ export default function InscripcionesPage() {
             return
         }
 
+        // Validar estado de edición
+        if (isEditing && !editingInscripcion?.id_inscripcion) {
+            toast.error('Error: No se encontró la inscripción a editar')
+            return
+        }
+
         // Validar calificación
         const calificacion = parseFloat(formData.cal_final)
         if (formData.cal_final && (calificacion < 0 || calificacion > 100)) {
@@ -209,33 +303,92 @@ export default function InscripcionesPage() {
         }
 
         try {
-            if (isEditing) {
+            let inscripcionId: number
+
+            if (isEditing && editingInscripcion?.id_inscripcion) {
+                console.log('Actualizando inscripción existente:', editingInscripcion.id_inscripcion)
                 // Actualizar inscripción existente
                 const { error } = await supabase
                     .from('inscripcion')
                     .update({
                         id_estudiante: formData.id_estudiante,
                         id_oferta: parseInt(formData.id_oferta),
-                        cal_final: formData.cal_final ? parseFloat(formData.cal_final) : null,
-                        asistencia_pct: formData.asistencia_pct ? parseFloat(formData.asistencia_pct) : null,
                         intentos: parseInt(formData.intentos)
                     })
-                    .eq('id_inscripcion', editingInscripcion?.id_inscripcion)
+                    .eq('id_inscripcion', editingInscripcion.id_inscripcion)
 
-                if (error) throw error
+                if (error) {
+                    console.error('Error al actualizar inscripción:', error)
+                    throw error
+                }
+                inscripcionId = editingInscripcion.id_inscripcion
             } else {
+                console.log('Creando nueva inscripción')
+
+                // Verificar si ya existe una inscripción para este estudiante y oferta
+                const { data: existingInscripcion, error: checkError } = await supabase
+                    .from('inscripcion')
+                    .select('id_inscripcion')
+                    .eq('id_estudiante', formData.id_estudiante)
+                    .eq('id_oferta', parseInt(formData.id_oferta))
+                    .single()
+
+                if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+                    console.error('Error al verificar inscripción existente:', checkError)
+                    throw checkError
+                }
+
+                if (existingInscripcion) {
+                    toast.error('Ya existe una inscripción para este estudiante en esta oferta')
+                    return
+                }
+
                 // Crear nueva inscripción
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('inscripcion')
                     .insert({
                         id_estudiante: formData.id_estudiante,
                         id_oferta: parseInt(formData.id_oferta),
-                        cal_final: formData.cal_final ? parseFloat(formData.cal_final) : null,
-                        asistencia_pct: formData.asistencia_pct ? parseFloat(formData.asistencia_pct) : null,
                         intentos: parseInt(formData.intentos)
                     })
+                    .select('id_inscripcion')
+                    .single()
 
-                if (error) throw error
+                if (error) {
+                    console.error('Error al crear inscripción:', error)
+                    throw error
+                }
+                inscripcionId = data.id_inscripcion
+            }
+
+            // Guardar unidades si hay datos
+            if (Object.keys(unidadesData).length > 0) {
+                const unidadesToProcess = Object.entries(unidadesData).filter(([_, data]) =>
+                    data.calificacion !== '' || data.asistio !== null
+                )
+
+                if (unidadesToProcess.length > 0) {
+                    if (isEditing) {
+                        // Eliminar unidades existentes y crear nuevas
+                        await supabase
+                            .from('estudiante_unidad')
+                            .delete()
+                            .eq('id_inscripcion', inscripcionId)
+                    }
+
+                    const unidadesToInsert = unidadesToProcess.map(([idMateriaUnidad, data]) => ({
+                        id_inscripcion: inscripcionId,
+                        id_materia_unidad: parseInt(idMateriaUnidad),
+                        calificacion: data.calificacion ? parseFloat(data.calificacion) : null,
+                        asistio: data.asistio
+                    }))
+
+                    const { error: unidadesError } = await supabase
+                        .from('estudiante_unidad')
+                        .insert(unidadesToInsert)
+
+                    if (unidadesError) throw unidadesError
+                }
             }
 
             // Recargar datos
@@ -249,6 +402,7 @@ export default function InscripcionesPage() {
                 asistencia_pct: '',
                 intentos: '1'
             })
+            setUnidadesData({})
             setIsSheetOpen(false)
             setIsEditing(false)
             setEditingInscripcion(null)
@@ -318,7 +472,77 @@ export default function InscripcionesPage() {
         }
     }
 
-    const handleEdit = (inscripcion: any) => {
+    const fetchMateriaUnidades = async (idMateria: number) => {
+        try {
+            const { data, error } = await supabase
+                .from('materia_unidad')
+                .select('*')
+                .eq('id_materia', idMateria)
+                .order('numero_unidad', { ascending: true })
+
+            if (error) throw error
+            setMateriaUnidades(data || [])
+        } catch (error) {
+            console.error('Error al cargar unidades de materia:', error)
+        }
+    }
+
+    const fetchEstudianteUnidades = async (idInscripcion: number) => {
+        try {
+            const { data, error } = await supabase
+                .from('estudiante_unidad')
+                .select(`
+                    *,
+                    materia_unidad:materia_unidad(*)
+                `)
+                .eq('id_inscripcion', idInscripcion)
+
+            if (error) {
+                console.error('Error en la consulta:', error)
+                throw error
+            }
+
+            setEstudianteUnidades(data || [])
+        } catch (error) {
+            console.error('Error al cargar unidades del estudiante:', error)
+        }
+    }
+
+    const handleGuardarUnidad = async (idInscripcion: number, idMateriaUnidad: number, calificacion: number, asistio: boolean) => {
+        try {
+            const { error } = await supabase
+                .from('estudiante_unidad')
+                .insert({
+                    id_inscripcion: idInscripcion,
+                    id_materia_unidad: idMateriaUnidad,
+                    calificacion: calificacion,
+                    asistio: asistio
+                })
+
+            if (error) throw error
+
+            // Recargar datos
+            await fetchEstudianteUnidades(idInscripcion)
+            await fetchInscripciones()
+            toast.success('Calificación y asistencia guardadas exitosamente')
+        } catch (error) {
+            console.error('Error al guardar unidad:', error)
+            toast.error('Error al guardar la unidad. Inténtalo de nuevo.')
+        }
+    }
+
+    const handleUnidadChange = (idMateriaUnidad: number, field: string, value: any) => {
+        setUnidadesData(prev => ({
+            ...prev,
+            [idMateriaUnidad]: {
+                calificacion: prev[idMateriaUnidad]?.calificacion || '',
+                asistio: prev[idMateriaUnidad]?.asistio ?? null,
+                [field]: value
+            }
+        }))
+    }
+
+    const handleEdit = async (inscripcion: any) => {
         setEditingInscripcion(inscripcion)
         setFormData({
             id_estudiante: inscripcion.id_estudiante,
@@ -327,6 +551,18 @@ export default function InscripcionesPage() {
             asistencia_pct: inscripcion.asistencia_pct?.toString() || '',
             intentos: inscripcion.intentos?.toString() || '1'
         })
+
+        // Limpiar datos previos
+        setUnidadesData({})
+        setMateriaUnidades([])
+        setEstudianteUnidades([])
+
+        // Cargar unidades de la materia
+        if (inscripcion.oferta?.materia?.id_materia) {
+            await fetchMateriaUnidades(inscripcion.oferta.materia.id_materia)
+            await fetchEstudianteUnidades(inscripcion.id_inscripcion)
+        }
+
         setIsEditing(true)
         setIsSheetOpen(true)
     }
@@ -392,12 +628,15 @@ export default function InscripcionesPage() {
                                         asistencia_pct: '',
                                         intentos: '1'
                                     })
+                                    setUnidadesData({})
+                                    setMateriaUnidades([])
+                                    setEstudianteUnidades([])
                                 }}>
                                     <Plus className="h-4 w-4 mr-2" />
                                     Nueva Inscripción
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent className="p-4 min-w-[500px]">
+                            <SheetContent className="p-4 min-w-[600px] max-w-[1200px] overflow-y-auto">
                                 <SheetHeader>
                                     <SheetTitle>
                                         {isEditing ? 'Editar Inscripción' : 'Nueva Inscripción'}
@@ -406,7 +645,7 @@ export default function InscripcionesPage() {
                                         {isEditing ? 'Modifica los datos de la inscripción' : 'Agrega una nueva inscripción al sistema'}
                                     </SheetDescription>
                                 </SheetHeader>
-                                <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+                                <form onSubmit={handleSubmit} className="mt-6 pr-2 space-y-6">
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field>
                                             <Label htmlFor="id_estudiante">Estudiante *</Label>
@@ -425,12 +664,16 @@ export default function InscripcionesPage() {
                                         </Field>
                                         <Field>
                                             <Label htmlFor="id_oferta">Oferta *</Label>
-                                            <Select value={formData.id_oferta} onValueChange={(value) => setFormData({ ...formData, id_oferta: value })}>
+                                            <Select
+                                                value={formData.id_oferta}
+                                                onValueChange={(value) => setFormData({ ...formData, id_oferta: value })}
+                                                disabled={!formData.id_estudiante}
+                                            >
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Seleccionar oferta" />
+                                                    <SelectValue placeholder={!formData.id_estudiante ? "Primero selecciona un estudiante" : "Seleccionar oferta"} />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {ofertas.map((oferta) => (
+                                                    {filteredOfertas.map((oferta) => (
                                                         <SelectItem key={oferta.id_oferta} value={oferta.id_oferta.toString()}>
                                                             {oferta.materia?.nombre} - {oferta.periodo?.etiqueta} - {oferta.grupo?.clave}
                                                         </SelectItem>
@@ -440,33 +683,7 @@ export default function InscripcionesPage() {
                                         </Field>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <Field>
-                                            <Label htmlFor="cal_final">Calificación Final</Label>
-                                            <Input
-                                                id="cal_final"
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                step="0.01"
-                                                value={formData.cal_final}
-                                                onChange={(e) => setFormData({ ...formData, cal_final: e.target.value })}
-                                                placeholder="85.5"
-                                            />
-                                        </Field>
-                                        <Field>
-                                            <Label htmlFor="asistencia_pct">Asistencia (%)</Label>
-                                            <Input
-                                                id="asistencia_pct"
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                step="0.01"
-                                                value={formData.asistencia_pct}
-                                                onChange={(e) => setFormData({ ...formData, asistencia_pct: e.target.value })}
-                                                placeholder="95.0"
-                                            />
-                                        </Field>
+                                    <div className="grid grid-cols-2 gap-4">
                                         <Field>
                                             <Label htmlFor="intentos">Intentos</Label>
                                             <Input
@@ -478,9 +695,74 @@ export default function InscripcionesPage() {
                                                 placeholder="1"
                                             />
                                         </Field>
+
                                     </div>
 
-                                    <div className="flex gap-2 pt-4">
+                                    {/* Sección de Unidades */}
+                                    {materiaUnidades.length > 0 && (
+                                        <div className="space-y-4">
+                                            <div className="border-t pt-4">
+                                                <h3 className="text-lg font-medium mb-4 flex items-center">
+                                                    <FileText className="h-5 w-5 mr-2" />
+                                                    Calificaciones y Asistencias por Unidad
+                                                    {isEditing && estudianteUnidades.length === 0 && (
+                                                        <span className="ml-2 text-sm text-gray-500">(Cargando datos existentes...)</span>
+                                                    )}
+                                                </h3>
+                                                <div
+                                                    className="space-y-3 overflow-y-auto pr-2 unidades-scroll"
+                                                >
+                                                    {materiaUnidades.map((unidad) => {
+                                                        const unidadData = {
+                                                            calificacion: unidadesData[unidad.id_materia_unidad]?.calificacion || '',
+                                                            asistio: unidadesData[unidad.id_materia_unidad]?.asistio ?? null
+                                                        }
+
+                                                        return (
+                                                            <div key={unidad.id_materia_unidad} className="border rounded-lg p-4 bg-gray-50">
+                                                                <div className="flex justify-between items-center mb-3">
+                                                                    <h4 className="font-medium">{unidad.nombre_unidad}</h4>
+                                                                    <Badge variant="outline">Peso: {unidad.peso}%</Badge>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                    <Field>
+                                                                        <Label>Calificación (0-100)</Label>
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            max="100"
+                                                                            step="0.01"
+                                                                            value={unidadData.calificacion}
+                                                                            onChange={(e) => handleUnidadChange(unidad.id_materia_unidad, 'calificacion', e.target.value)}
+                                                                            placeholder="85.5"
+                                                                        />
+                                                                    </Field>
+                                                                    <Field>
+                                                                        <Label>Asistió</Label>
+                                                                        <Select
+                                                                            value={unidadData.asistio === null || unidadData.asistio === undefined ? '' : String(unidadData.asistio)}
+                                                                            onValueChange={(value) => handleUnidadChange(unidad.id_materia_unidad, 'asistio', value === 'true')}
+                                                                        >
+                                                                            <SelectTrigger>
+                                                                                <SelectValue placeholder="Seleccionar" />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="true">Sí</SelectItem>
+                                                                                <SelectItem value="false">No</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    </Field>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex max-w-1/2 gap-2 pt-4">
                                         <Button type="submit" className="flex-1">
                                             <Save className="h-4 w-4 mr-2" />
                                             {isEditing ? 'Actualizar' : 'Crear'}
@@ -619,17 +901,9 @@ export default function InscripcionesPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Ver detalles
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleEdit(inscripcion)}>
                                                             <Edit className="mr-2 h-4 w-4" />
-                                                            Editar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <TrendingUp className="mr-2 h-4 w-4" />
-                                                            Ver progreso
+                                                            Editar inscripción
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="text-red-600"
@@ -748,6 +1022,7 @@ export default function InscripcionesPage() {
                         </CardContent>
                     </Card>
                 </div>
+
             </div>
         </Layout>
     )
