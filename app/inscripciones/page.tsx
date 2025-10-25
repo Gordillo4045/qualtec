@@ -719,8 +719,8 @@ export default function InscripcionesPage() {
                                                         }
 
                                                         return (
-                                                            <div key={unidad.id_materia_unidad} className="border rounded-lg p-4 bg-gray-50">
-                                                                <div className="flex justify-between items-center mb-3">
+                                                            <Card key={unidad.id_materia_unidad} className="border rounded-lg p-4">
+                                                                <div className="flex justify-between items-center">
                                                                     <h4 className="font-medium">{unidad.nombre_unidad}</h4>
                                                                     <Badge variant="outline">Peso: {unidad.peso}%</Badge>
                                                                 </div>
@@ -732,10 +732,10 @@ export default function InscripcionesPage() {
                                                                             type="number"
                                                                             min="0"
                                                                             max="100"
-                                                                            step="0.01"
+                                                                            step="1"
                                                                             value={unidadData.calificacion}
                                                                             onChange={(e) => handleUnidadChange(unidad.id_materia_unidad, 'calificacion', e.target.value)}
-                                                                            placeholder="85.5"
+                                                                            placeholder="100"
                                                                         />
                                                                     </Field>
                                                                     <Field>
@@ -754,7 +754,7 @@ export default function InscripcionesPage() {
                                                                         </Select>
                                                                     </Field>
                                                                 </div>
-                                                            </div>
+                                                            </Card>
                                                         )
                                                     })}
                                                 </div>
