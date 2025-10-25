@@ -1,8 +1,12 @@
+'use client'
 import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { Field } from "@/components/ui/field"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import {
     Table,
     TableBody,
@@ -18,222 +22,622 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    Search,
-    Plus,
-    Filter,
-    Download,
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+// import { Textarea } from "@/components/ui/textarea"
+import {
+    AlertTriangle,
+    TrendingUp,
+    PlusCircle,
     MoreHorizontal,
     Edit,
     Trash2,
-    Eye,
-    AlertTriangle,
-    BookOpen,
-    Heart,
-    DollarSign,
-    Building,
-    TrendingUp,
     Users,
-    Target
+    FileText,
+    Calendar,
+    Target,
+    AlertCircle
 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { toast } from "sonner"
 
 export default function FactoresPage() {
-    const factores = [
-        {
-            id: 1,
-            nombre: "Bajo rendimiento académico",
-            categoria: "Académico",
-            severidad: 5,
-            descripcion: "Calificaciones por debajo del promedio",
-            estudiantes: 15,
-            periodo: "2024-1",
-            fechaRegistro: "2024-01-15"
-        },
-        {
-            id: 2,
-            nombre: "Problemas familiares",
-            categoria: "Psicosocial",
-            severidad: 4,
-            descripcion: "Conflictos familiares que afectan el rendimiento",
-            estudiantes: 8,
-            periodo: "2024-1",
-            fechaRegistro: "2024-01-16"
-        },
-        {
-            id: 3,
-            nombre: "Dificultades económicas",
-            categoria: "Económico",
-            severidad: 3,
-            descripcion: "Falta de recursos para materiales y transporte",
-            estudiantes: 12,
-            periodo: "2024-1",
-            fechaRegistro: "2024-01-17"
-        },
-        {
-            id: 4,
-            nombre: "Falta de infraestructura",
-            categoria: "Institucional",
-            severidad: 2,
-            descripcion: "Laboratorios y equipos insuficientes",
-            estudiantes: 25,
-            periodo: "2024-1",
-            fechaRegistro: "2024-01-18"
-        },
-        {
-            id: 5,
-            nombre: "Problemas de salud mental",
-            categoria: "Psicosocial",
-            severidad: 4,
-            descripcion: "Ansiedad y depresión estudiantil",
-            estudiantes: 6,
-            periodo: "2024-1",
-            fechaRegistro: "2024-01-19"
-        }
-    ]
+    const [isSheetOpen, setIsSheetOpen] = useState(false)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editingFactor, setEditingFactor] = useState<any>(null)
+    const [factores, setFactores] = useState<any[]>([])
+    const [subfactores, setSubfactores] = useState<any[]>([])
+    const [estudiantes, setEstudiantes] = useState<any[]>([])
+    const [periodos, setPeriodos] = useState<any[]>([])
+    const [estudianteFactores, setEstudianteFactores] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [selectedFactor, setSelectedFactor] = useState('all')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage] = useState(10)
 
-    const getSeverityBadge = (severidad: number) => {
-        if (severidad >= 4) {
-            return <Badge variant="destructive" className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Alto</Badge>
-        } else if (severidad >= 3) {
-            return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Medio</Badge>
-        } else {
-            return <Badge variant="secondary" className="bg-green-100 text-green-800">Bajo</Badge>
+    const [formData, setFormData] = useState({
+        id_estudiante: '',
+        id_periodo: '',
+        id_factor: '',
+        id_subfactor: '',
+        severidad: '',
+        observacion: ''
+    })
+
+    const supabase = createClient()
+
+    // Verificar conexión a Supabase
+    useEffect(() => {
+        const testConnection = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('periodo')
+                    .select('id_periodo')
+                    .limit(1)
+
+                if (error) {
+                    console.error('Error de conexión a Supabase:', error)
+                    toast.error('Error de conexión a la base de datos')
+                } else {
+                    console.log('Conexión a Supabase exitosa')
+                }
+            } catch (error) {
+                console.error('Error al verificar conexión:', error)
+            }
+        }
+
+        testConnection()
+    }, [])
+
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                await Promise.all([
+                    fetchFactores(),
+                    fetchSubfactores(),
+                    fetchEstudiantes(),
+                    fetchPeriodos(),
+                    fetchEstudianteFactores()
+                ])
+            } catch (error) {
+                console.error('Error general al cargar datos:', error)
+                toast.error('Error al cargar algunos datos')
+            }
+        }
+
+        loadData()
+    }, [])
+
+    const fetchFactores = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('factor')
+                .select('*')
+                .order('nombre')
+
+            if (error) {
+                console.error('Error de Supabase en factores:', error)
+                throw error
+            }
+            setFactores(data || [])
+        } catch (error) {
+            console.error('Error al cargar factores:', error)
+            toast.error('Error al cargar factores')
         }
     }
 
-    const getCategoryIcon = (categoria: string) => {
-        switch (categoria) {
-            case "Académico":
-                return <BookOpen className="h-4 w-4 text-blue-600" />
-            case "Psicosocial":
-                return <Heart className="h-4 w-4 text-pink-600" />
-            case "Económico":
-                return <DollarSign className="h-4 w-4 text-green-600" />
-            case "Institucional":
-                return <Building className="h-4 w-4 text-purple-600" />
-            default:
-                return <Target className="h-4 w-4 text-gray-600" />
+    const fetchSubfactores = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('subfactor')
+                .select(`
+                    *,
+                    factor:factor(*)
+                `)
+                .order('nombre')
+
+            if (error) throw error
+            setSubfactores(data || [])
+        } catch (error) {
+            console.error('Error al cargar subfactores:', error)
+            toast.error('Error al cargar subfactores')
         }
+    }
+
+    const fetchEstudiantes = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('estudiante')
+                .select(`
+                    *,
+                    carrera:carrera(*)
+                `)
+                .order('ap_paterno')
+                .order('ap_materno')
+                .order('nombres')
+
+            if (error) throw error
+            setEstudiantes(data || [])
+        } catch (error) {
+            console.error('Error al cargar estudiantes:', error)
+            toast.error('Error al cargar estudiantes')
+        }
+    }
+
+    const fetchPeriodos = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('periodo')
+                .select('*')
+                .order('anio', { ascending: false })
+                .order('etiqueta', { ascending: true })
+
+            if (error) {
+                console.error('Error de Supabase:', error)
+                throw error
+            }
+
+            setPeriodos(data || [])
+        } catch (error) {
+            console.error('Error al cargar periodos:', error)
+            toast.error('Error al cargar periodos')
+        }
+    }
+
+    const fetchEstudianteFactores = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('estudiante_factor')
+                .select(`
+                    *,
+                    estudiante:estudiante(*),
+                    periodo:periodo(*),
+                    factor:factor(*),
+                    subfactor:subfactor(*)
+                `)
+                .order('fecha_registro', { ascending: false })
+
+            if (error) throw error
+            setEstudianteFactores(data || [])
+            setLoading(false)
+        } catch (error) {
+            console.error('Error al cargar factores de estudiantes:', error)
+            toast.error('Error al cargar factores de estudiantes')
+            setLoading(false)
+        }
+    }
+
+    const filterEstudianteFactores = () => {
+        let filtered = estudianteFactores
+
+        if (searchTerm) {
+            filtered = filtered.filter(ef =>
+                ef.estudiante?.nombres?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                ef.estudiante?.ap_paterno?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                ef.estudiante?.ap_materno?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                ef.factor?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                ef.subfactor?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+        }
+
+        if (selectedFactor && selectedFactor !== 'all') {
+            filtered = filtered.filter(ef => ef.id_factor === parseInt(selectedFactor))
+        }
+
+        return filtered
+    }
+
+    const filteredEstudianteFactores = filterEstudianteFactores()
+    const totalPages = Math.ceil(filteredEstudianteFactores.length / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    const currentEstudianteFactores = filteredEstudianteFactores.slice(startIndex, endIndex)
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        if (!formData.id_estudiante || !formData.id_periodo || !formData.id_factor || !formData.id_subfactor || !formData.severidad) {
+            toast.error('Por favor completa todos los campos requeridos')
+            return
+        }
+
+        try {
+            if (isEditing && editingFactor) {
+                // Actualizar factor de estudiante existente
+                const { error } = await supabase
+                    .from('estudiante_factor')
+                    .update({
+                        id_estudiante: formData.id_estudiante,
+                        id_periodo: parseInt(formData.id_periodo),
+                        id_factor: parseInt(formData.id_factor),
+                        id_subfactor: parseInt(formData.id_subfactor),
+                        severidad: parseInt(formData.severidad),
+                        observacion: formData.observacion || null
+                    })
+                    .eq('id_estudiante_factor', editingFactor.id_estudiante_factor)
+
+                if (error) throw error
+                toast.success('Factor de estudiante actualizado correctamente')
+            } else {
+                // Crear nuevo factor de estudiante
+                const { error } = await supabase
+                    .from('estudiante_factor')
+                    .insert({
+                        id_estudiante: formData.id_estudiante,
+                        id_periodo: parseInt(formData.id_periodo),
+                        id_factor: parseInt(formData.id_factor),
+                        id_subfactor: parseInt(formData.id_subfactor),
+                        severidad: parseInt(formData.severidad),
+                        observacion: formData.observacion || null
+                    })
+
+                if (error) throw error
+                toast.success('Factor de estudiante registrado correctamente')
+            }
+
+            fetchEstudianteFactores()
+            handleClose()
+        } catch (error) {
+            console.error('Error al guardar factor de estudiante:', error)
+            toast.error('Error al guardar factor de estudiante')
+        }
+    }
+
+    const handleEdit = (estudianteFactor: any) => {
+        setEditingFactor(estudianteFactor)
+        setFormData({
+            id_estudiante: estudianteFactor.id_estudiante,
+            id_periodo: estudianteFactor.id_periodo?.toString() || '',
+            id_factor: estudianteFactor.id_factor?.toString() || '',
+            id_subfactor: estudianteFactor.id_subfactor?.toString() || '',
+            severidad: estudianteFactor.severidad?.toString() || '',
+            observacion: estudianteFactor.observacion || ''
+        })
+        setIsEditing(true)
+        setIsSheetOpen(true)
+    }
+
+    const handleDelete = async (id: number) => {
+        if (!confirm('¿Estás seguro de que quieres eliminar este factor de estudiante?')) return
+
+        try {
+            const { error } = await supabase
+                .from('estudiante_factor')
+                .delete()
+                .eq('id_estudiante_factor', id)
+
+            if (error) throw error
+            toast.success('Factor de estudiante eliminado correctamente')
+            fetchEstudianteFactores()
+        } catch (error) {
+            console.error('Error al eliminar factor de estudiante:', error)
+            toast.error('Error al eliminar factor de estudiante')
+        }
+    }
+
+    const handleClose = () => {
+        setIsSheetOpen(false)
+        setIsEditing(false)
+        setEditingFactor(null)
+        setFormData({
+            id_estudiante: '',
+            id_periodo: '',
+            id_factor: '',
+            id_subfactor: '',
+            severidad: '',
+            observacion: ''
+        })
+    }
+
+    const getSeveridadColor = (severidad: number) => {
+        if (severidad <= 2) return 'bg-green-100 text-green-800'
+        if (severidad === 3) return 'bg-yellow-100 text-yellow-800'
+        return 'bg-red-100 text-red-800'
+    }
+
+    const getSeveridadText = (severidad: number) => {
+        if (severidad <= 2) return 'Baja'
+        if (severidad === 3) return 'Media'
+        return 'Alta'
+    }
+
+    const getSubfactoresByFactor = (idFactor: number) => {
+        return subfactores.filter(sf => sf.id_factor === idFactor)
+    }
+
+    if (loading) {
+        return (
+            <Layout>
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                        <p className="mt-2 text-gray-600">Cargando factores...</p>
+                    </div>
+                </div>
+            </Layout>
+        )
     }
 
     return (
         <Layout>
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Factores de Riesgo</h1>
                         <p className="text-muted-foreground">
-                            Análisis y gestión de factores que afectan la calidad académica
+                            Gestión de factores de riesgo académico y psicosocial
                         </p>
                     </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                            <Download className="h-4 w-4 mr-2" />
-                            Exportar
-                        </Button>
-                        <Button size="sm">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Factor
-                        </Button>
-                    </div>
+                    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                        <SheetTrigger asChild>
+                            <Button onClick={handleClose}>
+                                <PlusCircle className="h-4 w-4 mr-2" />
+                                Registrar Factor
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent className="p-4 min-w-[500px]">
+                            <SheetHeader>
+                                <SheetTitle>
+                                    {isEditing ? 'Editar Factor de Estudiante' : 'Registrar Factor de Estudiante'}
+                                </SheetTitle>
+                                <SheetDescription>
+                                    {isEditing ? 'Modifica la información del factor de riesgo' : 'Registra un nuevo factor de riesgo para un estudiante'}
+                                </SheetDescription>
+                            </SheetHeader>
+
+                            <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+                                <Field>
+                                    <Label>Estudiante *</Label>
+                                    <Select
+                                        value={formData.id_estudiante}
+                                        onValueChange={(value) => setFormData({ ...formData, id_estudiante: value })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccionar estudiante" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {estudiantes.map((estudiante) => (
+                                                <SelectItem key={estudiante.id_estudiante} value={estudiante.id_estudiante}>
+                                                    {estudiante.ap_paterno} {estudiante.ap_materno} {estudiante.nombres}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+
+                                <Field>
+                                    <Label>Período *</Label>
+                                    <Select
+                                        value={formData.id_periodo}
+                                        onValueChange={(value) => setFormData({ ...formData, id_periodo: value })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccionar período" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {periodos.map((periodo) => (
+                                                <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
+                                                    {periodo.anio} - {periodo.etiqueta}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+
+                                <Field>
+                                    <Label>Factor de Riesgo *</Label>
+                                    <Select
+                                        value={formData.id_factor}
+                                        onValueChange={(value) => {
+                                            setFormData({ ...formData, id_factor: value, id_subfactor: '' })
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccionar factor" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {factores.map((factor) => (
+                                                <SelectItem key={factor.id_factor} value={factor.id_factor.toString()}>
+                                                    {factor.nombre}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+
+                                <Field>
+                                    <Label>Subfactor *</Label>
+                                    <Select
+                                        value={formData.id_subfactor}
+                                        onValueChange={(value) => setFormData({ ...formData, id_subfactor: value })}
+                                        disabled={!formData.id_factor}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccionar subfactor" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {getSubfactoresByFactor(parseInt(formData.id_factor)).map((subfactor) => (
+                                                <SelectItem key={subfactor.id_subfactor} value={subfactor.id_subfactor.toString()}>
+                                                    {subfactor.nombre}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+
+                                <Field>
+                                    <Label>Severidad (1-5) *</Label>
+                                    <Select
+                                        value={formData.severidad}
+                                        onValueChange={(value) => setFormData({ ...formData, severidad: value })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccionar severidad" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="1">1 - Muy Baja</SelectItem>
+                                            <SelectItem value="2">2 - Baja</SelectItem>
+                                            <SelectItem value="3">3 - Media</SelectItem>
+                                            <SelectItem value="4">4 - Alta</SelectItem>
+                                            <SelectItem value="5">5 - Muy Alta</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+
+                                <Field>
+                                    <Label>Observación</Label>
+                                    <textarea
+                                        value={formData.observacion}
+                                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, observacion: e.target.value })}
+                                        placeholder="Observaciones adicionales..."
+                                        rows={3}
+                                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    />
+                                </Field>
+
+                                <div className="flex justify-end space-x-2">
+                                    <Button type="button" variant="outline" onClick={handleClose}>
+                                        Cancelar
+                                    </Button>
+                                    <Button type="submit">
+                                        {isEditing ? 'Actualizar' : 'Registrar'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </SheetContent>
+                    </Sheet>
                 </div>
 
-                {/* Categorías de factores */}
-                <div className="grid gap-4 md:grid-cols-4">
+                {/* Estadísticas */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Académicos</CardTitle>
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <CardTitle className="text-sm font-medium">Total Factores</CardTitle>
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{factores.filter(f => f.categoria === "Académico").length}</div>
+                            <div className="text-2xl font-bold">{estudianteFactores.length}</div>
                             <p className="text-xs text-muted-foreground">
-                                Factores relacionados con el rendimiento académico
+                                Registros de factores de riesgo
                             </p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Psicosociales</CardTitle>
-                            <Heart className="h-4 w-4 text-pink-600" />
+                            <CardTitle className="text-sm font-medium">Factores Altos</CardTitle>
+                            <AlertCircle className="h-4 w-4 text-red-500" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{factores.filter(f => f.categoria === "Psicosocial").length}</div>
+                            <div className="text-2xl font-bold text-red-600">
+                                {estudianteFactores.filter(ef => ef.severidad >= 4).length}
+                            </div>
                             <p className="text-xs text-muted-foreground">
-                                Factores emocionales y sociales
+                                Severidad 4-5
                             </p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Económicos</CardTitle>
-                            <DollarSign className="h-4 w-4 text-green-600" />
+                            <CardTitle className="text-sm font-medium">Estudiantes</CardTitle>
+                            <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{factores.filter(f => f.categoria === "Económico").length}</div>
+                            <div className="text-2xl font-bold">
+                                {new Set(estudianteFactores.map(ef => ef.id_estudiante)).size}
+                            </div>
                             <p className="text-xs text-muted-foreground">
-                                Factores relacionados con recursos económicos
+                                Con factores registrados
                             </p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Institucionales</CardTitle>
-                            <Building className="h-4 w-4 text-purple-600" />
+                            <CardTitle className="text-sm font-medium">Promedio Severidad</CardTitle>
+                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{factores.filter(f => f.categoria === "Institucional").length}</div>
+                            <div className="text-2xl font-bold">
+                                {estudianteFactores.length > 0
+                                    ? (estudianteFactores.reduce((acc, ef) => acc + (ef.severidad || 0), 0) / estudianteFactores.length).toFixed(1)
+                                    : '0.0'
+                                }
+                            </div>
                             <p className="text-xs text-muted-foreground">
-                                Factores relacionados con la institución
+                                Severidad promedio
                             </p>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Filtros y búsqueda */}
+                {/* Filtros */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Filtros y Búsqueda</CardTitle>
-                        <CardDescription>
-                            Busca y filtra factores por diferentes criterios
-                        </CardDescription>
+                        <CardTitle>Filtros</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="flex-1">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Buscar por nombre o descripción..."
-                                        className="pl-10"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Filtros
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Categoría
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Severidad
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Periodo
-                                </Button>
-                            </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field>
+                                <Label>Buscar</Label>
+                                <Input
+                                    placeholder="Buscar por estudiante o factor..."
+                                    value={searchTerm}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value)
+                                        setCurrentPage(1)
+                                    }}
+                                />
+                            </Field>
+                            <Field>
+                                <Label>Factor</Label>
+                                <Select
+                                    value={selectedFactor}
+                                    onValueChange={(value) => {
+                                        setSelectedFactor(value)
+                                        setCurrentPage(1)
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Todos los factores" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los factores</SelectItem>
+                                        {factores.map((factor) => (
+                                            <SelectItem key={factor.id_factor} value={factor.id_factor.toString()}>
+                                                {factor.nombre}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Tabla de factores */}
+                {/* Tabla */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Lista de Factores de Riesgo</CardTitle>
+                        <CardTitle>Factores de Riesgo Registrados</CardTitle>
                         <CardDescription>
-                            {factores.length} factores identificados en el sistema
+                            Lista de factores de riesgo identificados en estudiantes
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -241,40 +645,52 @@ export default function FactoresPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead>Estudiante</TableHead>
+                                        <TableHead>Período</TableHead>
                                         <TableHead>Factor</TableHead>
-                                        <TableHead>Categoría</TableHead>
+                                        <TableHead>Subfactor</TableHead>
                                         <TableHead>Severidad</TableHead>
-                                        <TableHead>Estudiantes Afectados</TableHead>
-                                        <TableHead>Periodo</TableHead>
-                                        <TableHead>Fecha Registro</TableHead>
-                                        <TableHead className="text-right">Acciones</TableHead>
+                                        <TableHead>Fecha</TableHead>
+                                        <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {factores.map((factor) => (
-                                        <TableRow key={factor.id}>
+                                    {currentEstudianteFactores.map((estudianteFactor) => (
+                                        <TableRow key={estudianteFactor.id_estudiante_factor}>
                                             <TableCell>
                                                 <div>
-                                                    <div className="font-medium">{factor.nombre}</div>
-                                                    <div className="text-sm text-muted-foreground">{factor.descripcion}</div>
+                                                    <div className="font-medium">
+                                                        {estudianteFactor.estudiante?.ap_paterno} {estudianteFactor.estudiante?.ap_materno} {estudianteFactor.estudiante?.nombres}
+                                                    </div>
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {estudianteFactor.estudiante?.numero_control}
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center">
-                                                    {getCategoryIcon(factor.categoria)}
-                                                    <span className="ml-2">{factor.categoria}</span>
-                                                </div>
+                                                {estudianteFactor.periodo?.anio} - {estudianteFactor.periodo?.etiqueta}
                                             </TableCell>
-                                            <TableCell>{getSeverityBadge(factor.severidad)}</TableCell>
                                             <TableCell>
-                                                <div className="flex items-center">
-                                                    <Users className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    <span className="font-medium">{factor.estudiantes}</span>
+                                                <div className="font-medium">{estudianteFactor.factor?.nombre}</div>
+                                                <div className="text-sm text-muted-foreground">
+                                                    {estudianteFactor.factor?.descripcion}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{factor.periodo}</TableCell>
-                                            <TableCell>{factor.fechaRegistro}</TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell>
+                                                <div className="font-medium">{estudianteFactor.subfactor?.nombre}</div>
+                                                <div className="text-sm text-muted-foreground">
+                                                    {estudianteFactor.subfactor?.descripcion}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge className={getSeveridadColor(estudianteFactor.severidad)}>
+                                                    {estudianteFactor.severidad} - {getSeveridadText(estudianteFactor.severidad)}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {new Date(estudianteFactor.fecha_registro).toLocaleDateString()}
+                                            </TableCell>
+                                            <TableCell>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" className="h-8 w-8 p-0">
@@ -282,15 +698,14 @@ export default function FactoresPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Ver detalles
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleEdit(estudianteFactor)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-red-600">
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleDelete(estudianteFactor.id_estudiante_factor)}
+                                                            className="text-red-600"
+                                                        >
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Eliminar
                                                         </DropdownMenuItem>
@@ -302,56 +717,70 @@ export default function FactoresPage() {
                                 </TableBody>
                             </Table>
                         </div>
+
+                        {totalPages > 1 && (
+                            <div className="mt-4">
+                                <Pagination>
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                            />
+                                        </PaginationItem>
+
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                            if (totalPages <= 7) {
+                                                return (
+                                                    <PaginationItem key={page}>
+                                                        <PaginationLink
+                                                            onClick={() => handlePageChange(page)}
+                                                            isActive={currentPage === page}
+                                                            className="cursor-pointer"
+                                                        >
+                                                            {page}
+                                                        </PaginationLink>
+                                                    </PaginationItem>
+                                                )
+                                            }
+
+                                            if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                                                return (
+                                                    <PaginationItem key={page}>
+                                                        <PaginationLink
+                                                            onClick={() => handlePageChange(page)}
+                                                            isActive={currentPage === page}
+                                                            className="cursor-pointer"
+                                                        >
+                                                            {page}
+                                                        </PaginationLink>
+                                                    </PaginationItem>
+                                                )
+                                            }
+
+                                            if (page === currentPage - 2 || page === currentPage + 2) {
+                                                return (
+                                                    <PaginationItem key={page}>
+                                                        <PaginationEllipsis />
+                                                    </PaginationItem>
+                                                )
+                                            }
+
+                                            return null
+                                        })}
+
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
-
-                {/* Análisis de tendencias */}
-                <div className="grid gap-4 md:grid-cols-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Factores por Severidad</CardTitle>
-                            <CardDescription>
-                                Distribución de factores según su nivel de severidad
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {[
-                                    { nivel: "Alto", cantidad: factores.filter(f => f.severidad >= 4).length, color: "bg-red-500" },
-                                    { nivel: "Medio", cantidad: factores.filter(f => f.severidad === 3).length, color: "bg-yellow-500" },
-                                    { nivel: "Bajo", cantidad: factores.filter(f => f.severidad < 3).length, color: "bg-green-500" }
-                                ].map((item, index) => (
-                                    <div key={index} className="flex items-center justify-between">
-                                        <div className="flex items-center">
-                                            <div className={`w-3 h-3 rounded-full ${item.color} mr-2`} />
-                                            <span className="text-sm font-medium">{item.nivel}</span>
-                                        </div>
-                                        <span className="text-sm text-muted-foreground">{item.cantidad} factores</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Estudiantes Afectados</CardTitle>
-                            <CardDescription>
-                                Total de estudiantes impactados por factores de riesgo
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-red-600">
-                                    {factores.reduce((acc, curr) => acc + curr.estudiantes, 0)}
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-2">
-                                    Estudiantes con al menos un factor de riesgo
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
             </div>
         </Layout>
     )
