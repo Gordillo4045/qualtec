@@ -1,3 +1,4 @@
+'use client'
 import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,11 +12,153 @@ import {
     TrendingDown,
     BarChart3,
     PieChart,
-    Calendar,
-    Download
+    Calendar
 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { toast } from "sonner"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
 
 export default function DashboardPage() {
+    const [loading, setLoading] = useState(true)
+    const [metrics, setMetrics] = useState({
+        totalEstudiantes: 0,
+        totalInscripciones: 0,
+        totalFactores: 0,
+        estudiantesConRiesgo: 0
+    })
+    const [estudiantesRiesgo, setEstudiantesRiesgo] = useState<any[]>([])
+    const [distribucionCarreras, setDistribucionCarreras] = useState<any[]>([])
+    const [actividadReciente, setActividadReciente] = useState<any[]>([])
+    const [datosGraficoBarras, setDatosGraficoBarras] = useState<any[]>([])
+    const [datosGraficoCircular, setDatosGraficoCircular] = useState<any[]>([])
+
+    const supabase = createClient()
+
+    useEffect(() => {
+        fetchDashboardData()
+    }, [])
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true)
+
+            // Obtener métricas principales
+            const [estudiantesResult, inscripcionesResult, factoresResult, estudiantesRiesgoResult] = await Promise.all([
+                supabase.from('estudiante').select('id_estudiante', { count: 'exact' }),
+                supabase.from('inscripcion').select('id_inscripcion', { count: 'exact' }),
+                supabase.from('estudiante_factor').select('id_estudiante_factor', { count: 'exact' }),
+                supabase.from('estudiante_factor').select(`
+                    id_estudiante,
+                    severidad,
+                    estudiante:estudiante(id_estudiante, numero_control, nombres, ap_paterno, ap_materno, carrera:carrera(nombre))
+                `).gte('severidad', 3).limit(5)
+            ])
+
+            // Obtener distribución por carreras
+            const carrerasResult = await supabase
+                .from('estudiante')
+                .select(`
+                    carrera:carrera(nombre),
+                    id_estudiante
+                `)
+                .not('id_carrera', 'is', null)
+
+            // Obtener actividad reciente (últimas inscripciones)
+            const actividadResult = await supabase
+                .from('inscripcion')
+                .select(`
+                    id_inscripcion,
+                    estudiante:estudiante(nombres, ap_paterno),
+                    oferta:oferta(materia:materia(nombre))
+                `)
+                .order('id_inscripcion', { ascending: false })
+                .limit(5)
+
+            // Procesar datos
+            const totalEstudiantes = estudiantesResult.count || 0
+            const totalInscripciones = inscripcionesResult.count || 0
+            const totalFactores = factoresResult.count || 0
+            const estudiantesConRiesgo = estudiantesRiesgoResult.data?.length || 0
+
+            // Procesar distribución por carreras
+            const carrerasMap = new Map()
+            carrerasResult.data?.forEach((estudiante: any) => {
+                const carrera = estudiante.carrera?.nombre || 'Sin carrera'
+                carrerasMap.set(carrera, (carrerasMap.get(carrera) || 0) + 1)
+            })
+            const distribucion = Array.from(carrerasMap.entries()).map(([nombre, cantidad]) => ({
+                nombre,
+                cantidad
+            }))
+
+            // Procesar actividad reciente
+            const actividad = actividadResult.data?.map((inscripcion: any) => ({
+                action: `Inscripción de ${inscripcion.estudiante?.nombres} ${inscripcion.estudiante?.ap_paterno}`,
+                time: 'Reciente',
+                type: 'success'
+            })) || []
+
+            // Preparar datos para gráficos
+            const datosBarras = distribucion.map(carrera => ({
+                carrera: carrera.nombre.length > 15 ? carrera.nombre.substring(0, 15) + '...' : carrera.nombre,
+                estudiantes: carrera.cantidad
+            }))
+
+            const datosCircular = distribucion.map((carrera, index) => ({
+                name: carrera.nombre,
+                value: carrera.cantidad,
+                fill: index === 0 ? '#3b82f6' :
+                    index === 1 ? '#10b981' :
+                        index === 2 ? '#f59e0b' :
+                            index === 3 ? '#8b5cf6' : '#6b7280'
+            }))
+
+            setMetrics({
+                totalEstudiantes,
+                totalInscripciones,
+                totalFactores,
+                estudiantesConRiesgo
+            })
+            setEstudiantesRiesgo(estudiantesRiesgoResult.data || [])
+            setDistribucionCarreras(distribucion)
+            setActividadReciente(actividad)
+            setDatosGraficoBarras(datosBarras)
+            setDatosGraficoCircular(datosCircular)
+
+        } catch (error) {
+            console.error('Error al cargar datos del dashboard:', error)
+            toast.error('Error al cargar los datos del dashboard')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+
+    const getSeveridadBadge = (severidad: number) => {
+        if (severidad >= 4) {
+            return <Badge variant="destructive">Alto</Badge>
+        } else if (severidad >= 3) {
+            return <Badge variant="default">Medio</Badge>
+        } else {
+            return <Badge variant="secondary">Bajo</Badge>
+        }
+    }
+
+    if (loading) {
+        return (
+            <Layout>
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                        <p className="text-muted-foreground">Cargando dashboard...</p>
+                    </div>
+                </div>
+            </Layout>
+        )
+    }
+
     return (
         <Layout>
             <div className="space-y-6">
@@ -28,13 +171,9 @@ export default function DashboardPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                            <Download className="h-4 w-4 mr-2" />
-                            Exportar
-                        </Button>
-                        <Button size="sm">
+                        <Button size="sm" onClick={fetchDashboardData}>
                             <Calendar className="h-4 w-4 mr-2" />
-                            Generar Reporte
+                            Actualizar
                         </Button>
                     </div>
                 </div>
@@ -47,11 +186,11 @@ export default function DashboardPage() {
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">1,234</div>
+                            <div className="text-2xl font-bold">{metrics.totalEstudiantes}</div>
                             <p className="text-xs text-muted-foreground">
                                 <span className="text-green-600 flex items-center">
                                     <TrendingUp className="h-3 w-3 mr-1" />
-                                    +12% desde el mes pasado
+                                    Estudiantes registrados
                                 </span>
                             </p>
                         </CardContent>
@@ -63,11 +202,11 @@ export default function DashboardPage() {
                             <BookOpen className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">856</div>
+                            <div className="text-2xl font-bold">{metrics.totalInscripciones}</div>
                             <p className="text-xs text-muted-foreground">
                                 <span className="text-green-600 flex items-center">
                                     <TrendingUp className="h-3 w-3 mr-1" />
-                                    +8% desde el mes pasado
+                                    Inscripciones totales
                                 </span>
                             </p>
                         </CardContent>
@@ -79,11 +218,11 @@ export default function DashboardPage() {
                             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">42</div>
+                            <div className="text-2xl font-bold">{metrics.totalFactores}</div>
                             <p className="text-xs text-muted-foreground">
                                 <span className="text-red-600 flex items-center">
-                                    <TrendingDown className="h-3 w-3 mr-1" />
-                                    -3% desde el mes pasado
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    Factores registrados
                                 </span>
                             </p>
                         </CardContent>
@@ -91,15 +230,15 @@ export default function DashboardPage() {
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Reportes Generados</CardTitle>
+                            <CardTitle className="text-sm font-medium">Estudiantes con Riesgo</CardTitle>
                             <FileText className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">28</div>
+                            <div className="text-2xl font-bold">{metrics.estudiantesConRiesgo}</div>
                             <p className="text-xs text-muted-foreground">
-                                <span className="text-green-600 flex items-center">
-                                    <TrendingUp className="h-3 w-3 mr-1" />
-                                    +5 este mes
+                                <span className="text-orange-600 flex items-center">
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    Con riesgo alto/medio
                                 </span>
                             </p>
                         </CardContent>
@@ -110,19 +249,59 @@ export default function DashboardPage() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                     <Card className="col-span-4">
                         <CardHeader>
-                            <CardTitle>Tendencia de Inscripciones</CardTitle>
+                            <CardTitle>Distribución de Estudiantes por Carrera</CardTitle>
                             <CardDescription>
-                                Evolución de inscripciones por mes
+                                Número de estudiantes inscritos por programa académico
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
-                                <div className="text-center">
-                                    <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                                    <p className="text-muted-foreground">Gráfico de tendencias</p>
-                                    <p className="text-sm text-muted-foreground">Se integrará con librería de gráficos</p>
+                            {datosGraficoBarras.length > 0 ? (
+                                <ChartContainer
+                                    config={{
+                                        carrera: {
+                                            label: "Carrera",
+                                        },
+                                        estudiantes: {
+                                            label: "Estudiantes",
+                                        },
+                                    }}
+                                    className="h-[300px] w-full"
+                                >
+                                    <BarChart data={datosGraficoBarras}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis
+                                            dataKey="carrera"
+                                            tick={{ fontSize: 12 }}
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={80}
+                                        />
+                                        <YAxis tick={{ fontSize: 12 }} />
+                                        <ChartTooltip
+                                            content={
+                                                <ChartTooltipContent
+                                                    formatter={(value, name) => [
+                                                        `${value} estudiantes`,
+                                                        "Estudiantes"
+                                                    ]}
+                                                />
+                                            }
+                                        />
+                                        <Bar
+                                            dataKey="estudiantes"
+                                            fill="#3b82f6"
+                                            radius={[4, 4, 0, 0]}
+                                        />
+                                    </BarChart>
+                                </ChartContainer>
+                            ) : (
+                                <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                                    <div className="text-center">
+                                        <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                                        <p className="text-muted-foreground">No hay datos para mostrar</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -130,17 +309,55 @@ export default function DashboardPage() {
                         <CardHeader>
                             <CardTitle>Distribución por Carrera</CardTitle>
                             <CardDescription>
-                                Estudiantes por programa académico
+                                Porcentaje de estudiantes por programa
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
-                                <div className="text-center">
-                                    <PieChart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                                    <p className="text-muted-foreground">Gráfico circular</p>
-                                    <p className="text-sm text-muted-foreground">Se integrará con librería de gráficos</p>
+                            {datosGraficoCircular.length > 0 ? (
+                                <ChartContainer
+                                    config={{
+                                        name: {
+                                            label: "Carrera",
+                                        },
+                                        value: {
+                                            label: "Estudiantes",
+                                        },
+                                    }}
+                                    className="h-[300px] w-full"
+                                >
+                                    <RechartsPieChart>
+                                        <ChartTooltip
+                                            content={
+                                                <ChartTooltipContent
+                                                    formatter={(value, name) => [
+                                                        `${value} estudiantes`,
+                                                        name
+                                                    ]}
+                                                />
+                                            }
+                                        />
+                                        <Pie
+                                            data={datosGraficoCircular}
+                                            cx="50%"
+                                            cy="50%"
+                                            outerRadius={80}
+                                            dataKey="value"
+                                            label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                        >
+                                            {datosGraficoCircular.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Pie>
+                                    </RechartsPieChart>
+                                </ChartContainer>
+                            ) : (
+                                <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                                    <div className="text-center">
+                                        <PieChart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                                        <p className="text-muted-foreground">No hay datos para mostrar</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -156,25 +373,31 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {[
-                                    { name: "Juan Pérez", carrera: "Ing. Sistemas", riesgo: "Alto", factores: 3 },
-                                    { name: "María García", carrera: "Ing. Industrial", riesgo: "Medio", factores: 2 },
-                                    { name: "Carlos López", carrera: "Ing. Mecánica", riesgo: "Alto", factores: 4 },
-                                    { name: "Ana Martínez", carrera: "Ing. Química", riesgo: "Bajo", factores: 1 },
-                                ].map((student, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                                        <div>
-                                            <p className="font-medium">{student.name}</p>
-                                            <p className="text-sm text-muted-foreground">{student.carrera}</p>
+                                {estudiantesRiesgo.length > 0 ? (
+                                    estudiantesRiesgo.map((estudiante, index) => (
+                                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                                            <div>
+                                                <p className="font-medium">
+                                                    {estudiante.estudiante?.nombres} {estudiante.estudiante?.ap_paterno}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {estudiante.estudiante?.carrera?.nombre || 'Sin carrera'}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                {getSeveridadBadge(estudiante.severidad)}
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Severidad: {estudiante.severidad}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <Badge variant={student.riesgo === "Alto" ? "destructive" : student.riesgo === "Medio" ? "default" : "secondary"}>
-                                                {student.riesgo}
-                                            </Badge>
-                                            <p className="text-xs text-muted-foreground mt-1">{student.factores} factores</p>
-                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+                                        <p>No hay estudiantes con riesgo identificado</p>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -188,23 +411,25 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {[
-                                    { action: "Nuevo estudiante registrado", time: "Hace 2 horas", type: "success" },
-                                    { action: "Reporte generado", time: "Hace 4 horas", type: "info" },
-                                    { action: "Factor de riesgo agregado", time: "Hace 6 horas", type: "warning" },
-                                    { action: "Inscripción completada", time: "Hace 8 horas", type: "success" },
-                                ].map((activity, index) => (
-                                    <div key={index} className="flex items-center space-x-3 p-3 border rounded-lg">
-                                        <div className={`w-2 h-2 rounded-full ${activity.type === "success" ? "bg-green-500" :
+                                {actividadReciente.length > 0 ? (
+                                    actividadReciente.map((activity, index) => (
+                                        <div key={index} className="flex items-center space-x-3 p-3 border rounded-lg">
+                                            <div className={`w-2 h-2 rounded-full ${activity.type === "success" ? "bg-green-500" :
                                                 activity.type === "warning" ? "bg-yellow-500" :
                                                     "bg-blue-500"
-                                            }`} />
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium">{activity.action}</p>
-                                            <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                                }`} />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium">{activity.action}</p>
+                                                <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                            </div>
                                         </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <FileText className="h-8 w-8 mx-auto mb-2" />
+                                        <p>No hay actividad reciente</p>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </CardContent>
                     </Card>
