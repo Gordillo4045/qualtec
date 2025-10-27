@@ -30,6 +30,14 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet"
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -63,11 +71,15 @@ import {
     TrendingUp,
     PlusCircle,
     MinusCircle,
-    FileText
+    FileText,
+    Upload,
+    FileSpreadsheet
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import * as XLSX from 'xlsx'
+import { useDropzone } from 'react-dropzone'
 
 export default function InscripcionesPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -103,8 +115,32 @@ export default function InscripcionesPage() {
     // Estados de paginación
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage] = useState(10)
+    const [loading, setLoading] = useState(true)
+    const [isUploading, setIsUploading] = useState(false)
+    const [uploadProgress, setUploadProgress] = useState(0)
+    const [showUploadModal, setShowUploadModal] = useState(false)
+
+    // Estados para modal de errores
+    const [showErrorModal, setShowErrorModal] = useState(false)
+    const [errorDetails, setErrorDetails] = useState<{
+        title: string
+        message: string
+        details: string[]
+        type: 'validation' | 'database' | 'excel' | 'general'
+    } | null>(null)
 
     const supabase = createClient()
+
+    // Función para mostrar errores en modal
+    const showError = (title: string, message: string, details: string[], type: 'validation' | 'database' | 'excel' | 'general' = 'general') => {
+        setErrorDetails({
+            title,
+            message,
+            details,
+            type
+        })
+        setShowErrorModal(true)
+    }
 
     useEffect(() => {
         fetchInscripciones()
@@ -278,7 +314,16 @@ export default function InscripcionesPage() {
 
         // Validar campos requeridos
         if (!formData.id_estudiante || !formData.id_oferta) {
-            toast.error('Por favor selecciona un estudiante y una oferta')
+            showError(
+                'Campos Requeridos',
+                'Debes seleccionar tanto un estudiante como una oferta para continuar.',
+                [
+                    '• Selecciona un estudiante de la lista',
+                    '• Selecciona una oferta disponible',
+                    '• Verifica que ambos campos estén completos'
+                ],
+                'validation'
+            )
             return
         }
 
@@ -291,14 +336,32 @@ export default function InscripcionesPage() {
         // Validar calificación
         const calificacion = parseFloat(formData.cal_final)
         if (formData.cal_final && (calificacion < 0 || calificacion > 100)) {
-            toast.error('La calificación debe estar entre 0 y 100')
+            showError(
+                'Calificación Inválida',
+                'La calificación debe estar dentro del rango válido.',
+                [
+                    '• La calificación debe ser un número entre 0 y 100',
+                    '• Valores válidos: 0, 1, 2, ..., 99, 100',
+                    '• Deja el campo vacío si no tienes la calificación'
+                ],
+                'validation'
+            )
             return
         }
 
         // Validar asistencia
         const asistencia = parseFloat(formData.asistencia_pct)
         if (formData.asistencia_pct && (asistencia < 0 || asistencia > 100)) {
-            toast.error('La asistencia debe estar entre 0 y 100')
+            showError(
+                'Asistencia Inválida',
+                'El porcentaje de asistencia debe estar dentro del rango válido.',
+                [
+                    '• La asistencia debe ser un número entre 0 y 100',
+                    '• Valores válidos: 0%, 1%, 2%, ..., 99%, 100%',
+                    '• Deja el campo vacío si no tienes el dato de asistencia'
+                ],
+                'validation'
+            )
             return
         }
 
@@ -339,7 +402,16 @@ export default function InscripcionesPage() {
                 }
 
                 if (existingInscripcion) {
-                    toast.error('Ya existe una inscripción para este estudiante en esta oferta')
+                    showError(
+                        'Inscripción Duplicada',
+                        'Ya existe una inscripción para este estudiante en la oferta seleccionada.',
+                        [
+                            '• El estudiante ya está inscrito en esta materia',
+                            '• Verifica que no hayas seleccionado la misma oferta',
+                            '• Si necesitas cambiar datos, usa la opción "Editar"'
+                        ],
+                        'validation'
+                    )
                     return
                 }
 
@@ -412,7 +484,17 @@ export default function InscripcionesPage() {
 
         } catch (error) {
             console.error('Error al guardar inscripción:', error)
-            toast.error('Error al guardar la inscripción. Inténtalo de nuevo.')
+            showError(
+                'Error al Guardar',
+                'No se pudo guardar la inscripción. Revisa los detalles del error.',
+                [
+                    '• Verifica tu conexión a internet',
+                    '• Asegúrate de que todos los datos sean válidos',
+                    '• Intenta nuevamente en unos momentos',
+                    '• Si el problema persiste, contacta al administrador'
+                ],
+                'database'
+            )
         }
     }
 
@@ -600,6 +682,278 @@ export default function InscripcionesPage() {
         return 'text-red-600'
     }
 
+    // Funciones para carga de Excel
+    const downloadTemplate = () => {
+        const templateData = [
+            {
+                'numero_control': '21212372',
+                'materia_clave': 'SC8B',
+                'periodo_etiqueta': 'Ago - Dic 2025',
+                'grupo_clave': 'INF8B',
+                'calificacion_unidad_1': 85,
+                'asistencia_unidad_1': 'Si',
+                'calificacion_unidad_2': 90,
+                'asistencia_unidad_2': 'Si',
+                'calificacion_unidad_3': 78,
+                'asistencia_unidad_3': 'No',
+                'calificacion_unidad_4': 92,
+                'asistencia_unidad_4': 'Si',
+                'calificacion_unidad_5': 88,
+                'asistencia_unidad_5': 'Si'
+            },
+            {
+                'numero_control': '22551001',
+                'materia_clave': 'ISW-303',
+                'periodo_etiqueta': 'Ago - Dic 2025',
+                'grupo_clave': 'SC9',
+                'calificacion_unidad_1': 92,
+                'asistencia_unidad_1': 'Si',
+                'calificacion_unidad_2': 88,
+                'asistencia_unidad_2': 'Si',
+                'calificacion_unidad_3': 95,
+                'asistencia_unidad_3': 'Si',
+                'calificacion_unidad_4': 87,
+                'asistencia_unidad_4': 'Si',
+                'calificacion_unidad_5': 91,
+                'asistencia_unidad_5': 'Si'
+            },
+            {
+                'numero_control': '22551002',
+                'materia_clave': 'ISW-304',
+                'periodo_etiqueta': 'Ago - Dic 2025',
+                'grupo_clave': 'SC10',
+                'calificacion_unidad_1': 76,
+                'asistencia_unidad_1': 'Si',
+                'calificacion_unidad_2': 82,
+                'asistencia_unidad_2': 'No',
+                'calificacion_unidad_3': 79,
+                'asistencia_unidad_3': 'Si',
+                'calificacion_unidad_4': 85,
+                'asistencia_unidad_4': 'Si',
+                'calificacion_unidad_5': 88,
+                'asistencia_unidad_5': 'Si'
+            },
+            {
+                'numero_control': '22551003',
+                'materia_clave': 'ISW-305',
+                'periodo_etiqueta': 'Ago - Dic 2025',
+                'grupo_clave': 'TIC8',
+                'calificacion_unidad_1': 94,
+                'asistencia_unidad_1': 'Si',
+                'calificacion_unidad_2': 89,
+                'asistencia_unidad_2': 'Si',
+                'calificacion_unidad_3': 96,
+                'asistencia_unidad_3': 'Si',
+                'calificacion_unidad_4': 92,
+                'asistencia_unidad_4': 'Si',
+                'calificacion_unidad_5': 90,
+                'asistencia_unidad_5': 'Si'
+            },
+            {
+                'numero_control': '22551004',
+                'materia_clave': 'IND-201',
+                'periodo_etiqueta': 'Ago - Dic 2025',
+                'grupo_clave': 'IND7',
+                'calificacion_unidad_1': 73,
+                'asistencia_unidad_1': 'Si',
+                'calificacion_unidad_2': 68,
+                'asistencia_unidad_2': 'No',
+                'calificacion_unidad_3': 75,
+                'asistencia_unidad_3': 'Si',
+                'calificacion_unidad_4': 71,
+                'asistencia_unidad_4': 'Si',
+                'calificacion_unidad_5': 78,
+                'asistencia_unidad_5': 'Si'
+            }
+        ]
+
+        const ws = XLSX.utils.json_to_sheet(templateData)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Inscripciones')
+        XLSX.writeFile(wb, 'plantilla_inscripciones.xlsx')
+        toast.success('Plantilla descargada exitosamente')
+    }
+
+    const processExcelFile = async (file: File) => {
+        setIsUploading(true)
+        setUploadProgress(0)
+
+        try {
+            const data = await file.arrayBuffer()
+            const workbook = XLSX.read(data)
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+            const jsonData = XLSX.utils.sheet_to_json(worksheet)
+
+            if (jsonData.length === 0) {
+                throw new Error('El archivo Excel está vacío')
+            }
+
+            let successCount = 0
+            let errorCount = 0
+            const errors: string[] = []
+
+            for (let i = 0; i < jsonData.length; i++) {
+                const row = jsonData[i] as any
+                setUploadProgress(((i + 1) / jsonData.length) * 100)
+
+                try {
+                    await processInscripcionRow(row, i + 1)
+                    successCount++
+                } catch (error) {
+                    errorCount++
+                    errors.push(`Fila ${i + 1}: ${error}`)
+                }
+            }
+
+            await fetchInscripciones()
+
+            if (successCount > 0) {
+                toast.success(`${successCount} inscripciones procesadas exitosamente`)
+            }
+
+            if (errorCount > 0) {
+                showError(
+                    'Errores en Carga de Excel',
+                    `Se encontraron ${errorCount} errores al procesar el archivo Excel.`,
+                    [
+                        '• Revisa el formato del archivo Excel',
+                        '• Verifica que los números de control existan',
+                        '• Asegúrate de que las claves de materia sean correctas',
+                        '• Comprueba que los grupos y períodos sean válidos',
+                        '• Revisa la consola del navegador para más detalles'
+                    ],
+                    'excel'
+                )
+                console.error('Errores de carga:', errors)
+            }
+
+        } catch (error) {
+            console.error('Error al procesar archivo Excel:', error)
+            toast.error('Error al procesar el archivo Excel')
+        } finally {
+            setIsUploading(false)
+            setUploadProgress(0)
+            setShowUploadModal(false)
+        }
+    }
+
+    const processInscripcionRow = async (row: any, rowNumber: number) => {
+        // Validar campos requeridos
+        if (!row.numero_control || !row.materia_clave || !row.periodo_etiqueta || !row.grupo_clave) {
+            throw new Error('Faltan campos requeridos: numero_control, materia_clave, periodo_etiqueta, grupo_clave')
+        }
+
+        // Buscar estudiante por número de control
+        const estudiante = estudiantes.find(e => e.numero_control === row.numero_control.toString())
+        if (!estudiante) {
+            throw new Error(`Estudiante con número de control ${row.numero_control} no encontrado`)
+        }
+
+        // Buscar oferta por materia, periodo y grupo
+        const oferta = ofertas.find(o =>
+            o.materia?.clave === row.materia_clave.toString() &&
+            o.periodo?.etiqueta === row.periodo_etiqueta.toString() &&
+            o.grupo?.clave === row.grupo_clave.toString()
+        )
+
+        if (!oferta) {
+            throw new Error(`Oferta no encontrada para materia ${row.materia_clave}, periodo ${row.periodo_etiqueta}, grupo ${row.grupo_clave}`)
+        }
+
+        // Verificar si ya existe la inscripción
+        const inscripcionExistente = inscripciones.find(ins =>
+            ins.id_estudiante === estudiante.id_estudiante &&
+            ins.id_oferta === oferta.id_oferta
+        )
+
+        if (inscripcionExistente) {
+            throw new Error('Ya existe una inscripción para este estudiante en esta oferta')
+        }
+
+        // Crear inscripción
+        const { data: nuevaInscripcion, error: inscripcionError } = await supabase
+            .from('inscripcion')
+            .insert({
+                id_estudiante: estudiante.id_estudiante,
+                id_oferta: oferta.id_oferta,
+                cal_final: null, // Se calculará automáticamente
+                asistencia_pct: null, // Se calculará automáticamente
+                aprobado: false,
+                intentos: 1
+            })
+            .select()
+            .single()
+
+        if (inscripcionError) {
+            throw new Error(`Error al crear inscripción: ${inscripcionError.message}`)
+        }
+
+        // Procesar calificaciones por unidad
+        await processUnidadesFromExcel(nuevaInscripcion.id_inscripcion, oferta.materia.id_materia, row)
+    }
+
+    const processUnidadesFromExcel = async (idInscripcion: number, idMateria: number, row: any) => {
+        // Obtener unidades de la materia
+        const { data: unidades, error: unidadesError } = await supabase
+            .from('materia_unidad')
+            .select('*')
+            .eq('id_materia', idMateria)
+            .order('numero_unidad', { ascending: true })
+
+        if (unidadesError) {
+            throw new Error(`Error al obtener unidades: ${unidadesError.message}`)
+        }
+
+        // Procesar cada unidad
+        for (const unidad of unidades) {
+            const calificacionKey = `calificacion_unidad_${unidad.numero_unidad}`
+            const asistenciaKey = `asistencia_unidad_${unidad.numero_unidad}`
+
+            const calificacion = row[calificacionKey]
+            const asistencia = row[asistenciaKey]
+
+            if (calificacion !== undefined && calificacion !== null && calificacion !== '') {
+                const calificacionNum = parseFloat(calificacion.toString())
+                if (isNaN(calificacionNum) || calificacionNum < 0 || calificacionNum > 100) {
+                    throw new Error(`Calificación inválida en unidad ${unidad.numero_unidad}: ${calificacion}`)
+                }
+
+                const asistio = asistencia ?
+                    (asistencia.toString().toLowerCase() === 'si' || asistencia.toString().toLowerCase() === 'true' || asistencia.toString() === '1') :
+                    true
+
+                const { error: unidadError } = await supabase
+                    .from('estudiante_unidad')
+                    .insert({
+                        id_inscripcion: idInscripcion,
+                        id_materia_unidad: unidad.id_materia_unidad,
+                        calificacion: calificacionNum,
+                        asistio: asistio
+                    })
+
+                if (unidadError) {
+                    throw new Error(`Error al guardar unidad ${unidad.numero_unidad}: ${unidadError.message}`)
+                }
+            }
+        }
+    }
+
+    const onDrop = (acceptedFiles: File[]) => {
+        const file = acceptedFiles[0]
+        if (file) {
+            processExcelFile(file)
+        }
+    }
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: {
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'application/vnd.ms-excel': ['.xls']
+        },
+        multiple: false
+    })
+
     return (
         <Layout>
             <div className="space-y-6">
@@ -612,6 +966,14 @@ export default function InscripcionesPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={downloadTemplate}>
+                            <FileSpreadsheet className="h-4 w-4 mr-2" />
+                            Plantilla Excel
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setShowUploadModal(true)}>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Cargar Excel
+                        </Button>
                         <Button variant="outline" size="sm">
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
@@ -1022,6 +1384,113 @@ export default function InscripcionesPage() {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Dialog de carga de Excel */}
+                <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Cargar Inscripciones desde Excel</DialogTitle>
+                            <DialogDescription>
+                                Sube un archivo Excel con las inscripciones y calificaciones por unidad
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                            <div className="text-sm text-muted-foreground">
+                                <p className="mb-2 font-medium">Formato requerido:</p>
+                                <ul className="list-disc list-inside space-y-1 text-xs">
+                                    <li>numero_control: Número de control del estudiante</li>
+                                    <li>materia_clave: Clave de la materia</li>
+                                    <li>periodo_etiqueta: Etiqueta del período</li>
+                                    <li>grupo_clave: Clave del grupo</li>
+                                    <li>calificacion_unidad_X: Calificación de la unidad X (0-100)</li>
+                                    <li>asistencia_unidad_X: Asistencia de la unidad X (Si/No)</li>
+                                </ul>
+                            </div>
+
+                            <div
+                                {...getRootProps()}
+                                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive
+                                    ? 'border-primary bg-primary/5'
+                                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                                    } ${isUploading ? 'pointer-events-none opacity-50' : ''}`}
+                            >
+                                <input {...getInputProps()} />
+                                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">
+                                    {isDragActive
+                                        ? 'Suelta el archivo aquí...'
+                                        : 'Arrastra un archivo Excel aquí o haz clic para seleccionar'
+                                    }
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Formatos soportados: .xlsx, .xls
+                                </p>
+                            </div>
+
+                            {isUploading && (
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span>Procesando...</span>
+                                        <span>{Math.round(uploadProgress)}%</span>
+                                    </div>
+                                    <div className="w-full bg-secondary rounded-full h-2">
+                                        <div
+                                            className="bg-primary h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${uploadProgress}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Modal de Errores */}
+                <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                {errorDetails?.type === 'validation' && <AlertTriangle className="h-5 w-5 text-yellow-500" />}
+                                {errorDetails?.type === 'database' && <AlertTriangle className="h-5 w-5 text-red-500" />}
+                                {errorDetails?.type === 'excel' && <FileSpreadsheet className="h-5 w-5 text-orange-500" />}
+                                {errorDetails?.type === 'general' && <AlertTriangle className="h-5 w-5 text-gray-500" />}
+                                {errorDetails?.title}
+                            </DialogTitle>
+                            <DialogDescription className="text-left">
+                                {errorDetails?.message}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                            <div className="bg-muted/50 rounded-lg p-4">
+                                <h4 className="font-medium text-sm mb-2">Detalles del problema:</h4>
+                                <ul className="space-y-1 text-sm text-muted-foreground">
+                                    {errorDetails?.details.map((detail, index) => (
+                                        <li key={index}>{detail}</li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <div className="flex justify-end gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowErrorModal(false)}
+                                >
+                                    Entendido
+                                </Button>
+                                {errorDetails?.type === 'database' && (
+                                    <Button onClick={() => {
+                                        setShowErrorModal(false)
+                                        // Aquí podrías agregar lógica para reintentar
+                                    }}>
+                                        Reintentar
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
             </div>
         </Layout>
