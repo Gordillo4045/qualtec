@@ -47,6 +47,7 @@ import {
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import * as XLSX from 'xlsx'
 
 export default function GruposPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -230,6 +231,22 @@ export default function GruposPage() {
         }
     }
 
+    const exportarGrupos = () => {
+        const datosExportar = grupos.map(grupo => ({
+            'ID': grupo.id_grupo,
+            'Clave': grupo.clave,
+            'Turno': grupo.turno || '',
+            'Carrera': grupo.carrera?.nombre || '',
+            'Estatus': 'Activo'
+        }))
+
+        const ws = XLSX.utils.json_to_sheet(datosExportar)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Grupos')
+        XLSX.writeFile(wb, `grupos_${new Date().toISOString().split('T')[0]}.xlsx`)
+        toast.success('Grupos exportados exitosamente')
+    }
+
     return (
         <Layout>
             <div className="space-y-6">
@@ -242,7 +259,7 @@ export default function GruposPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={exportarGrupos}>
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>

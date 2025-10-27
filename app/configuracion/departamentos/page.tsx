@@ -49,6 +49,7 @@ import {
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import * as XLSX from 'xlsx'
 
 export default function DepartamentosPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -191,6 +192,20 @@ export default function DepartamentosPage() {
         }
     }
 
+    const exportarDepartamentos = () => {
+        const datosExportar = departamentos.map(departamento => ({
+            'ID': departamento.id_departamento,
+            'Nombre': departamento.nombre,
+            'Estatus': 'Activo'
+        }))
+
+        const ws = XLSX.utils.json_to_sheet(datosExportar)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Departamentos')
+        XLSX.writeFile(wb, `departamentos_${new Date().toISOString().split('T')[0]}.xlsx`)
+        toast.success('Departamentos exportados exitosamente')
+    }
+
     return (
         <Layout>
             <div className="space-y-6">
@@ -203,7 +218,7 @@ export default function DepartamentosPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={exportarDepartamentos}>
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>

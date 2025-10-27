@@ -51,6 +51,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import * as XLSX from 'xlsx'
 
 export default function PeriodosPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -270,6 +271,23 @@ export default function PeriodosPage() {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
         return diffDays
     }
+
+    const exportarPeriodos = () => {
+        const datosExportar = periodos.map(periodo => ({
+            'ID': periodo.id_periodo,
+            'Año': periodo.anio,
+            'Etiqueta': periodo.etiqueta,
+            'Fecha Inicio': periodo.inicio || '',
+            'Fecha Fin': periodo.fin || '',
+            'Estatus': 'Activo'
+        }))
+
+        const ws = XLSX.utils.json_to_sheet(datosExportar)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Períodos')
+        XLSX.writeFile(wb, `periodos_${new Date().toISOString().split('T')[0]}.xlsx`)
+        toast.success('Períodos exportados exitosamente')
+    }
     return (
         <Layout>
             <div className="space-y-6">
@@ -282,7 +300,7 @@ export default function PeriodosPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={exportarPeriodos}>
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>

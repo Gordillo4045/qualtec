@@ -50,6 +50,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import * as XLSX from 'xlsx'
 
 export default function OfertasPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -325,6 +326,24 @@ export default function OfertasPage() {
         }
     }
 
+    const exportarOfertas = () => {
+        const datosExportar = ofertas.map(oferta => ({
+            'ID': oferta.id_oferta,
+            'Materia': oferta.materia?.nombre || '',
+            'Clave Materia': oferta.materia?.clave || '',
+            'Período': oferta.periodo?.etiqueta || '',
+            'Grupo': oferta.grupo?.clave || '',
+            'Turno': oferta.grupo?.turno || '',
+            'Estatus': 'Activa'
+        }))
+
+        const ws = XLSX.utils.json_to_sheet(datosExportar)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Ofertas')
+        XLSX.writeFile(wb, `ofertas_${new Date().toISOString().split('T')[0]}.xlsx`)
+        toast.success('Ofertas exportadas exitosamente')
+    }
+
     return (
         <Layout>
             <div className="space-y-6">
@@ -337,7 +356,7 @@ export default function OfertasPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={exportarOfertas}>
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>

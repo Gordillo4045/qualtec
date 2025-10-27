@@ -48,6 +48,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import * as XLSX from 'xlsx'
 
 export default function MateriasPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -283,6 +284,23 @@ export default function MateriasPage() {
         }
     }
 
+    const exportarMaterias = () => {
+        const datosExportar = materias.map(materia => ({
+            'ID': materia.id_materia,
+            'Clave': materia.clave,
+            'Nombre': materia.nombre,
+            'Créditos': materia.creditos || 0,
+            'Departamento': materia.departamento?.nombre || '',
+            'Estatus': 'Activa'
+        }))
+
+        const ws = XLSX.utils.json_to_sheet(datosExportar)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Materias')
+        XLSX.writeFile(wb, `materias_${new Date().toISOString().split('T')[0]}.xlsx`)
+        toast.success('Materias exportadas exitosamente')
+    }
+
     return (
         <Layout>
             <div className="space-y-6">
@@ -295,7 +313,7 @@ export default function MateriasPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={exportarMaterias}>
                             <Download className="h-4 w-4 mr-2" />
                             Exportar
                         </Button>
