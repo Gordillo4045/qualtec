@@ -50,7 +50,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "./theme-toggle"
-import { User2, ChevronUp, Moon, Sun } from "lucide-react"
+import { User2, ChevronUp, Moon, Sun, History } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
 
@@ -252,6 +252,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                         {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                                         <span>Cambiar tema</span>
                                     </button>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link href="/bitacora" className="flex items-center px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground">
+                                        <History className="mr-2 h-4 w-4" />
+                                        <span>Ver Bitácora</span>
+                                    </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={signOut}>
                                     <LogOut className="mr-2" />

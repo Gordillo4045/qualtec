@@ -80,11 +80,13 @@ import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
 import { useDropzone } from 'react-dropzone'
+import { useAudit } from "@/hooks/use-audit"
 
 export default function InscripcionesPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
     const [editingInscripcion, setEditingInscripcion] = useState<any>(null)
+    const { logOperation, isAuthenticated, user } = useAudit()
     const [formData, setFormData] = useState({
         id_estudiante: '',
         id_oferta: '',
@@ -482,6 +484,18 @@ export default function InscripcionesPage() {
             // Mostrar notificación de éxito
             toast.success(isEditing ? 'Inscripción actualizada exitosamente' : 'Inscripción creada exitosamente')
 
+            // Registrar en auditoría con usuario autenticado (más específico que el trigger)
+            if (isAuthenticated && user) {
+                await logOperation(
+                    'inscripcion',
+                    isEditing ? 'UPDATE' : 'INSERT',
+                    inscripcionId.toString(),
+                    isEditing ? editingInscripcion : null,
+                    formData,
+                    `${isEditing ? 'Actualización' : 'Creación'} de inscripción por ${user.email} - Operación manual`
+                )
+            }
+
         } catch (error) {
             console.error('Error al guardar inscripción:', error)
             showError(
@@ -660,6 +674,18 @@ export default function InscripcionesPage() {
                 if (error) throw error
                 await fetchInscripciones()
                 toast.success('Inscripción eliminada exitosamente')
+
+                // Registrar en auditoría con usuario autenticado (más específico que el trigger)
+                if (isAuthenticated && user) {
+                    await logOperation(
+                        'inscripcion',
+                        'DELETE',
+                        id.toString(),
+                        null,
+                        null,
+                        `Eliminación de inscripción por ${user.email} - Operación manual`
+                    )
+                }
             } catch (error) {
                 console.error('Error al eliminar inscripción:', error)
                 toast.error('Error al eliminar la inscripción. Inténtalo de nuevo.')
