@@ -21,6 +21,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
 
 export default function DashboardPage() {
+    // Paleta de colores solicitada
+    const PALETTE = ['#1B3C53', '#234C6A', '#456882', '#D2C1B6']
     const [loading, setLoading] = useState(true)
     const [metrics, setMetrics] = useState({
         totalEstudiantes: 0,
@@ -29,6 +31,7 @@ export default function DashboardPage() {
         estudiantesConRiesgo: 0
     })
     const [estudiantesRiesgo, setEstudiantesRiesgo] = useState<any[]>([])
+    const [aprobacionCarreras, setAprobacionCarreras] = useState<any[]>([])
     const [distribucionCarreras, setDistribucionCarreras] = useState<any[]>([])
     const [actividadReciente, setActividadReciente] = useState<any[]>([])
     const [datosGraficoBarras, setDatosGraficoBarras] = useState<any[]>([])
@@ -56,7 +59,15 @@ export default function DashboardPage() {
                 `).gte('severidad', 3).limit(5)
             ])
 
-            // Obtener distribución por carreras
+            // Obtener inscripciones con carrera para calcular aprobación por carrera
+            const inscripcionesPorCarreraResult = await supabase
+                .from('inscripcion')
+                .select(`
+                    aprobado,
+                    estudiante:estudiante(id_carrera, carrera:carrera(nombre))
+                `)
+
+            // Obtener distribución de estudiantes por carrera
             const carrerasResult = await supabase
                 .from('estudiante')
                 .select(`
@@ -82,8 +93,23 @@ export default function DashboardPage() {
             const totalFactores = factoresResult.count || 0
             const estudiantesConRiesgo = estudiantesRiesgoResult.data?.length || 0
 
+            // Procesar aprobación por carrera
+            const carreraToStats = new Map<string, { total: number; aprobadas: number }>()
+            inscripcionesPorCarreraResult.data?.forEach((ins: any) => {
+                const carrera = ins.estudiante?.carrera?.nombre || 'Sin carrera'
+                const stats = carreraToStats.get(carrera) || { total: 0, aprobadas: 0 }
+                stats.total += 1
+                stats.aprobadas += ins.aprobado ? 1 : 0
+                carreraToStats.set(carrera, stats)
+            })
+            const aprobacion = Array.from(carreraToStats.entries()).map(([nombre, s]) => ({
+                carrera: nombre,
+                tasaAprobacion: s.total > 0 ? Number(((s.aprobadas / s.total) * 100).toFixed(1)) : 0,
+                total: s.total
+            })).sort((a, b) => b.tasaAprobacion - a.tasaAprobacion)
+
             // Procesar distribución por carreras
-            const carrerasMap = new Map()
+            const carrerasMap = new Map<string, number>()
             carrerasResult.data?.forEach((estudiante: any) => {
                 const carrera = estudiante.carrera?.nombre || 'Sin carrera'
                 carrerasMap.set(carrera, (carrerasMap.get(carrera) || 0) + 1)
@@ -101,18 +127,15 @@ export default function DashboardPage() {
             })) || []
 
             // Preparar datos para gráficos
-            const datosBarras = distribucion.map(carrera => ({
-                carrera: carrera.nombre.length > 15 ? carrera.nombre.substring(0, 15) + '...' : carrera.nombre,
-                estudiantes: carrera.cantidad
+            const datosBarras = aprobacion.map(c => ({
+                carrera: c.carrera.length > 15 ? c.carrera.substring(0, 15) + '...' : c.carrera,
+                tasaAprobacion: c.tasaAprobacion
             }))
 
             const datosCircular = distribucion.map((carrera, index) => ({
                 name: carrera.nombre,
                 value: carrera.cantidad,
-                fill: index === 0 ? '#3b82f6' :
-                    index === 1 ? '#10b981' :
-                        index === 2 ? '#f59e0b' :
-                            index === 3 ? '#8b5cf6' : '#6b7280'
+                fill: PALETTE[index % PALETTE.length]
             }))
 
             setMetrics({
@@ -122,6 +145,7 @@ export default function DashboardPage() {
                 estudiantesConRiesgo
             })
             setEstudiantesRiesgo(estudiantesRiesgoResult.data || [])
+            setAprobacionCarreras(aprobacion)
             setDistribucionCarreras(distribucion)
             setActividadReciente(actividad)
             setDatosGraficoBarras(datosBarras)
@@ -249,21 +273,17 @@ export default function DashboardPage() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                     <Card className="col-span-4">
                         <CardHeader>
-                            <CardTitle>Distribución de Estudiantes por Carrera</CardTitle>
+                            <CardTitle>Aprobación por Carrera</CardTitle>
                             <CardDescription>
-                                Número de estudiantes inscritos por programa académico
+                                Porcentaje de aprobación por programa académico
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             {datosGraficoBarras.length > 0 ? (
                                 <ChartContainer
                                     config={{
-                                        carrera: {
-                                            label: "Carrera",
-                                        },
-                                        estudiantes: {
-                                            label: "Estudiantes",
-                                        },
+                                        carrera: { label: "Carrera" },
+                                        tasaAprobacion: { label: "% Aprobación" },
                                     }}
                                     className="h-[300px] w-full"
                                 >
@@ -276,22 +296,15 @@ export default function DashboardPage() {
                                             textAnchor="end"
                                             height={80}
                                         />
-                                        <YAxis tick={{ fontSize: 12 }} />
+                                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
                                         <ChartTooltip
                                             content={
                                                 <ChartTooltipContent
-                                                    formatter={(value, name) => [
-                                                        `${value} estudiantes`,
-                                                        "Estudiantes"
-                                                    ]}
+                                                    formatter={(value) => [`${value}%`, '% Aprobación']}
                                                 />
                                             }
                                         />
-                                        <Bar
-                                            dataKey="estudiantes"
-                                            fill="#3b82f6"
-                                            radius={[4, 4, 0, 0]}
-                                        />
+                                        <Bar dataKey="tasaAprobacion" fill={PALETTE[1]} radius={[4, 4, 0, 0]} />
                                     </BarChart>
                                 </ChartContainer>
                             ) : (
@@ -316,12 +329,8 @@ export default function DashboardPage() {
                             {datosGraficoCircular.length > 0 ? (
                                 <ChartContainer
                                     config={{
-                                        name: {
-                                            label: "Carrera",
-                                        },
-                                        value: {
-                                            label: "Estudiantes",
-                                        },
+                                        name: { label: "Carrera" },
+                                        value: { label: "Estudiantes" },
                                     }}
                                     className="h-[300px] w-full"
                                 >
