@@ -94,15 +94,15 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { Canvg } from 'canvg'
 
-// Colores para gráficos
+// Paleta unificada (Dashboard)
 const COLORS = {
-    primary: '#3b82f6',
-    secondary: '#8b5cf6',
-    success: '#10b981',
-    warning: '#f59e0b',
-    danger: '#ef4444',
-    info: '#06b6d4',
-    gray: '#6b7280'
+    primary: '#1B3C53',   // azul muy oscuro
+    secondary: '#234C6A', // azul oscuro
+    success: '#456882',   // azul medio
+    warning: '#D2C1B6',   // beige/acento
+    danger: '#234C6A',    // mantener coherencia para barras rojas anteriores -> azul oscuro
+    info: '#456882',
+    gray: '#D2C1B6'
 }
 
 const CATEGORIA_COLORS = {
@@ -140,6 +140,8 @@ const svgToPngDataUrl = async (svg: SVGSVGElement, targetWidth = 1000): Promise<
     await v.render()
     return canvas.toDataURL('image/png')
 }
+
+// (moved) Estrategia de generación para cards definida dentro del componente
 
 // Utilidad sencilla para dibujar tablas sin dependencias externas
 const drawTable = (
@@ -245,6 +247,34 @@ export default function AnaliticaPage() {
     const [reportType, setReportType] = useState('')
 
     const supabase = createClient()
+
+    // Estrategia de generación de PDF desde las cards (Strategy Pattern)
+    const cardReportStrategies: Record<'academico' | 'riesgo' | 'estadisticas' | 'asistencia', () => Promise<void>> = {
+        academico: async () => {
+            await generarPDFCompleto()
+        },
+        riesgo: async () => {
+            setParetoConfig(prev => ({ ...prev, variable: prev.variable || 'factores' }))
+            await generarPDFCompleto()
+        },
+        estadisticas: async () => {
+            await generarPDFCompleto()
+        },
+        asistencia: async () => {
+            setControlConfig(prev => ({ ...prev, variable: 'asistencia' }))
+            await generarPDFCompleto()
+        }
+    }
+
+    const handleCardGenerate = async (type: 'academico' | 'riesgo' | 'estadisticas' | 'asistencia') => {
+        if (generatingReport) return
+        try {
+            setGeneratingReport(true)
+            await cardReportStrategies[type]()
+        } finally {
+            setGeneratingReport(false)
+        }
+    }
 
     useEffect(() => {
         fetchData()
@@ -1601,13 +1631,11 @@ export default function AnaliticaPage() {
                             <Button
                                 size="sm"
                                 className="w-full"
-                                onClick={() => {
-                                    setHistogramDialogOpen(true)
-                                    document.getElementById('histogram-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                                }}
+                                disabled={generatingReport}
+                                onClick={() => handleCardGenerate('academico')}
                             >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Generar
+                                {generatingReport ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                                {generatingReport ? 'Generando PDF...' : 'Generar'}
                             </Button>
                         </CardContent>
                     </Card>
@@ -1628,13 +1656,11 @@ export default function AnaliticaPage() {
                             <Button
                                 size="sm"
                                 className="w-full"
-                                onClick={() => {
-                                    setParetoDialogOpen(true)
-                                    document.getElementById('pareto-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                                }}
+                                disabled={generatingReport}
+                                onClick={() => handleCardGenerate('riesgo')}
                             >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Generar
+                                {generatingReport ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                                {generatingReport ? 'Generando PDF...' : 'Generar'}
                             </Button>
                         </CardContent>
                     </Card>
@@ -1655,13 +1681,11 @@ export default function AnaliticaPage() {
                             <Button
                                 size="sm"
                                 className="w-full"
-                                onClick={() => {
-                                    setControlDialogOpen(true)
-                                    document.getElementById('control-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                                }}
+                                disabled={generatingReport}
+                                onClick={() => handleCardGenerate('estadisticas')}
                             >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Generar
+                                {generatingReport ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                                {generatingReport ? 'Generando PDF...' : 'Generar'}
                             </Button>
                         </CardContent>
                     </Card>
@@ -1682,14 +1706,11 @@ export default function AnaliticaPage() {
                             <Button
                                 size="sm"
                                 className="w-full"
-                                onClick={() => {
-                                    setControlConfig(prev => ({ ...prev, variable: 'asistencia' }))
-                                    setControlDialogOpen(true)
-                                    document.getElementById('control-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                                }}
+                                disabled={generatingReport}
+                                onClick={() => handleCardGenerate('asistencia')}
                             >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Generar
+                                {generatingReport ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                                {generatingReport ? 'Generando PDF...' : 'Generar'}
                             </Button>
                         </CardContent>
                     </Card>
@@ -1759,15 +1780,11 @@ export default function AnaliticaPage() {
                                                         <Button variant="outline" onClick={() => setParetoDialogOpen(false)}>
                                                             Cancelar
                                                         </Button>
-                                                        <Button
-                                                            disabled={generatingReport}
-                                                            onClick={async () => {
-                                                                setParetoDialogOpen(false)
-                                                                toast.success('Configuración de Pareto aplicada')
-                                                                await generarPDFCompleto()
-                                                            }}
-                                                        >
-                                                            {generatingReport ? 'Generando PDF...' : 'Generar'}
+                                                        <Button onClick={() => {
+                                                            setParetoDialogOpen(false)
+                                                            toast.success('Configuración de Pareto aplicada')
+                                                        }}>
+                                                            Aplicar
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -1886,15 +1903,11 @@ export default function AnaliticaPage() {
                                                         <Button variant="outline" onClick={() => setControlDialogOpen(false)}>
                                                             Cancelar
                                                         </Button>
-                                                        <Button
-                                                            disabled={generatingReport}
-                                                            onClick={async () => {
-                                                                setControlDialogOpen(false)
-                                                                toast.success('Configuración de control aplicada')
-                                                                await generarPDFCompleto()
-                                                            }}
-                                                        >
-                                                            {generatingReport ? 'Generando PDF...' : 'Generar'}
+                                                        <Button onClick={() => {
+                                                            setControlDialogOpen(false)
+                                                            toast.success('Configuración de control aplicada')
+                                                        }}>
+                                                            Aplicar
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -2019,15 +2032,11 @@ export default function AnaliticaPage() {
                                                         <Button variant="outline" onClick={() => setScatterDialogOpen(false)}>
                                                             Cancelar
                                                         </Button>
-                                                        <Button
-                                                            disabled={generatingReport}
-                                                            onClick={async () => {
-                                                                setScatterDialogOpen(false)
-                                                                toast.success('Configuración de dispersión aplicada')
-                                                                await generarPDFCompleto()
-                                                            }}
-                                                        >
-                                                            {generatingReport ? 'Generando PDF...' : 'Generar'}
+                                                        <Button onClick={() => {
+                                                            setScatterDialogOpen(false)
+                                                            toast.success('Configuración de dispersión aplicada')
+                                                        }}>
+                                                            Aplicar
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -2152,15 +2161,11 @@ export default function AnaliticaPage() {
                                                         <Button variant="outline" onClick={() => setHistogramDialogOpen(false)}>
                                                             Cancelar
                                                         </Button>
-                                                        <Button
-                                                            disabled={generatingReport}
-                                                            onClick={async () => {
-                                                                setHistogramDialogOpen(false)
-                                                                toast.success('Configuración de histograma aplicada')
-                                                                await generarPDFCompleto()
-                                                            }}
-                                                        >
-                                                            {generatingReport ? 'Generando PDF...' : 'Generar'}
+                                                        <Button onClick={() => {
+                                                            setHistogramDialogOpen(false)
+                                                            toast.success('Configuración de histograma aplicada')
+                                                        }}>
+                                                            Aplicar
                                                         </Button>
                                                     </div>
                                                 </div>

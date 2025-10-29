@@ -275,7 +275,7 @@ export default function DashboardPage() {
                         <CardHeader>
                             <CardTitle>Aprobación por Carrera</CardTitle>
                             <CardDescription>
-                                Porcentaje de aprobación por programa académico
+                                Porcentaje de aprobación por carrera
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -322,7 +322,7 @@ export default function DashboardPage() {
                         <CardHeader>
                             <CardTitle>Distribución por Carrera</CardTitle>
                             <CardDescription>
-                                Porcentaje de estudiantes por programa
+                                Porcentaje de estudiantes por carrera
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
