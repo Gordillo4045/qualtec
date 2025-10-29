@@ -81,11 +81,11 @@ const data = {
             url: "/analitica",
             icon: BarChart3,
         },
-        {
-            title: "Reportes",
-            url: "/reportes",
-            icon: FileText,
-        },
+        // {
+        //     title: "Reportes",
+        //     url: "/reportes",
+        //     icon: FileText,
+        // },
     ],
     navConfig: [
         {

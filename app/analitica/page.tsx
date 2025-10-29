@@ -11,6 +11,12 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -76,11 +82,17 @@ import {
     BarChart2,
     Fish,
     TrendingUp as ControlChart,
-    Zap
+    Zap,
+    FileText,
+    Loader2
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import { Canvg } from 'canvg'
 
 // Colores para gráficos
 const COLORS = {
@@ -102,6 +114,93 @@ const CATEGORIA_COLORS = {
     'Institucional': '#8b5cf6',
     'Tecnológico': '#06b6d4',
     'Otro': '#6b7280'
+}
+
+// Utilidades para exportar gráficos (Recharts genera SVG)
+const getChartSvgFromContainer = (element: HTMLElement | null): SVGSVGElement | null => {
+    if (!element) return null
+    const svg = element.querySelector('svg') as SVGSVGElement | null
+    return svg
+}
+
+const svgToPngDataUrl = async (svg: SVGSVGElement, targetWidth = 1000): Promise<string> => {
+    const serializer = new XMLSerializer()
+    const svgString = serializer.serializeToString(svg)
+
+    // Preparar canvas respetando aspecto
+    const bbox = svg.getBBox()
+    const aspectRatio = bbox && bbox.width > 0 ? bbox.height / bbox.width : 0.6
+    const canvas = document.createElement('canvas')
+    canvas.width = targetWidth
+    canvas.height = Math.round(targetWidth * aspectRatio)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Contexto 2D no disponible')
+
+    const v = await Canvg.from(ctx, svgString)
+    await v.render()
+    return canvas.toDataURL('image/png')
+}
+
+// Utilidad sencilla para dibujar tablas sin dependencias externas
+const drawTable = (
+    pdf: jsPDF,
+    headers: string[],
+    rows: Array<Array<string | number>>,
+    startY: number,
+    options?: { columnWidths?: number[]; rowHeight?: number }
+): number => {
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const leftMargin = 20
+    const rightMargin = 20
+    const usableWidth = pageWidth - leftMargin - rightMargin
+
+    const rowHeight = options?.rowHeight ?? 7
+    const columnWidths = options?.columnWidths ?? new Array(headers.length).fill(Math.floor(usableWidth / headers.length))
+
+    let currentY = startY
+
+    const ensureSpace = (needed: number) => {
+        const pageHeight = pdf.internal.pageSize.getHeight()
+        if (currentY + needed > pageHeight - 20) {
+            pdf.addPage()
+            currentY = 20
+        }
+    }
+
+    // Header
+    pdf.setFontSize(9)
+    pdf.setTextColor(255, 255, 255)
+    pdf.setFillColor(31, 41, 55) // gris oscuro
+    ensureSpace(rowHeight)
+    let x = leftMargin
+    headers.forEach((h, idx) => {
+        pdf.rect(x, currentY, columnWidths[idx], rowHeight, 'F')
+        const text = pdf.splitTextToSize(String(h), columnWidths[idx] - 2)
+        pdf.text(text as any, x + 1, currentY + 5)
+        x += columnWidths[idx]
+    })
+    currentY += rowHeight
+
+    // Body
+    pdf.setTextColor(0, 0, 0)
+    rows.forEach((row, rIndex) => {
+        ensureSpace(rowHeight)
+        let bx = leftMargin
+        // zebra
+        if (rIndex % 2 === 0) {
+            pdf.setFillColor(243, 244, 246) // gris claro
+            pdf.rect(bx, currentY, usableWidth, rowHeight, 'F')
+        }
+        row.forEach((cell, idx) => {
+            pdf.rect(bx, currentY, columnWidths[idx], rowHeight)
+            const text = pdf.splitTextToSize(String(cell ?? ''), columnWidths[idx] - 2)
+            pdf.text(text as any, bx + 1, currentY + 5)
+            bx += columnWidths[idx]
+        })
+        currentY += rowHeight
+    })
+
+    return currentY
 }
 
 export default function AnaliticaPage() {
@@ -140,6 +239,10 @@ export default function AnaliticaPage() {
         carrera: '',
         variable: 'reprobacion'
     })
+
+    // Estados para generación de reportes
+    const [generatingReport, setGeneratingReport] = useState(false)
+    const [reportType, setReportType] = useState('')
 
     const supabase = createClient()
 
@@ -727,6 +830,676 @@ export default function AnaliticaPage() {
         }
     }
 
+    // Funciones para generar reportes Excel
+    const generarReporteCompleto = async () => {
+        try {
+            setGeneratingReport(true)
+
+            // Crear workbook
+            const wb = XLSX.utils.book_new()
+
+            // 1. Resumen Ejecutivo
+            const resumenEjecutivo = [
+                { 'Métrica': 'Total Estudiantes', 'Valor': filteredEstudiantes.length },
+                { 'Métrica': 'Total Factores de Riesgo', 'Valor': filteredFactores.length },
+                { 'Métrica': 'Total Inscripciones', 'Valor': filteredInscripciones.length },
+                { 'Métrica': 'Tasa de Aprobación (%)', 'Valor': filteredInscripciones.length > 0 ? ((filteredInscripciones.filter(ins => ins.aprobado).length / filteredInscripciones.length) * 100).toFixed(1) : '0.0' },
+                { 'Métrica': 'Periodo Analizado', 'Valor': selectedPeriod === 'all' ? 'Todos los periodos' : periodos.find(p => p.id_periodo.toString() === selectedPeriod)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === selectedPeriod)?.anio },
+                { 'Métrica': 'Carrera Analizada', 'Valor': selectedCarrera === 'all' ? 'Todas las carreras' : carreras.find(c => c.id_carrera.toString() === selectedCarrera)?.nombre }
+            ]
+
+            const wsResumen = XLSX.utils.json_to_sheet(resumenEjecutivo)
+            XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen Ejecutivo')
+
+            // 2. Análisis de Pareto
+            const paretoData = getAnalisisPareto()
+            const wsPareto = XLSX.utils.json_to_sheet(paretoData)
+            XLSX.utils.book_append_sheet(wb, wsPareto, 'Análisis de Pareto')
+
+            // 3. Histograma de Calificaciones
+            const histogramData = getHistogramaCalificaciones()
+            const wsHistogram = XLSX.utils.json_to_sheet(histogramData)
+            XLSX.utils.book_append_sheet(wb, wsHistogram, 'Histograma Calificaciones')
+
+            // 4. Diagrama de Dispersión
+            const scatterData = getDispersionEstudio()
+            const wsScatter = XLSX.utils.json_to_sheet(scatterData)
+            XLSX.utils.book_append_sheet(wb, wsScatter, 'Diagrama de Dispersión')
+
+            // 5. Gráfico de Control
+            const controlData = getControlReprobacion()
+            const wsControl = XLSX.utils.json_to_sheet(controlData)
+            XLSX.utils.book_append_sheet(wb, wsControl, 'Gráfico de Control')
+
+            // 6. Factores por Categoría
+            const factoresCategoria = getFactoresPorCategoria()
+            const wsFactoresCategoria = XLSX.utils.json_to_sheet(factoresCategoria)
+            XLSX.utils.book_append_sheet(wb, wsFactoresCategoria, 'Factores por Categoría')
+
+            // 7. Distribución por Severidad
+            const severidadData = getFactoresPorSeveridad()
+            const wsSeveridad = XLSX.utils.json_to_sheet(severidadData)
+            XLSX.utils.book_append_sheet(wb, wsSeveridad, 'Distribución por Severidad')
+
+            // 8. Rendimiento por Carrera
+            const rendimientoData = getRendimientoPorCarrera()
+            const wsRendimiento = XLSX.utils.json_to_sheet(rendimientoData)
+            XLSX.utils.book_append_sheet(wb, wsRendimiento, 'Rendimiento por Carrera')
+
+            // 9. Top Factores de Riesgo
+            const topFactores = getTopFactoresRiesgo()
+            const wsTopFactores = XLSX.utils.json_to_sheet(topFactores)
+            XLSX.utils.book_append_sheet(wb, wsTopFactores, 'Top Factores de Riesgo')
+
+            // 10. Tendencia Temporal
+            const tendenciaData = getTendenciaTemporal()
+            const wsTendencia = XLSX.utils.json_to_sheet(tendenciaData)
+            XLSX.utils.book_append_sheet(wb, wsTendencia, 'Tendencia Temporal')
+
+            // 11. Datos Detallados de Factores
+            const factoresDetallados = filteredFactores.map(ef => ({
+                'Número Control': ef.estudiante?.numero_control || '',
+                'Nombre Completo': `${ef.estudiante?.nombres || ''} ${ef.estudiante?.ap_paterno || ''} ${ef.estudiante?.ap_materno || ''}`,
+                'Carrera': ef.estudiante?.carrera?.nombre || '',
+                'Factor': ef.factor?.nombre || '',
+                'Subfactor': ef.subfactor?.nombre || '',
+                'Categoría': ef.factor?.categoria || '',
+                'Severidad': ef.severidad || 0,
+                'Observación': ef.observacion || '',
+                'Periodo': `${ef.periodo?.anio || ''}-${ef.periodo?.etiqueta || ''}`,
+                'Fecha Registro': ef.fecha_registro || ''
+            }))
+
+            const wsFactoresDetallados = XLSX.utils.json_to_sheet(factoresDetallados)
+            XLSX.utils.book_append_sheet(wb, wsFactoresDetallados, 'Factores Detallados')
+
+            // 12. Datos Detallados de Inscripciones
+            const inscripcionesDetalladas = filteredInscripciones.map(ins => ({
+                'Número Control': ins.estudiante?.numero_control || '',
+                'Nombre Completo': `${ins.estudiante?.nombres || ''} ${ins.estudiante?.ap_paterno || ''} ${ins.estudiante?.ap_materno || ''}`,
+                'Carrera': ins.estudiante?.carrera?.nombre || '',
+                'Materia': ins.oferta?.materia?.nombre || '',
+                'Grupo': ins.oferta?.grupo?.clave || '',
+                'Periodo': `${ins.oferta?.periodo?.anio || ''}-${ins.oferta?.periodo?.etiqueta || ''}`,
+                'Calificación Final': ins.cal_final || 0,
+                'Asistencia (%)': ins.asistencia_pct || 0,
+                'Aprobado': ins.aprobado ? 'Sí' : 'No',
+                'Intentos': ins.intentos || 1
+            }))
+
+            const wsInscripcionesDetalladas = XLSX.utils.json_to_sheet(inscripcionesDetalladas)
+            XLSX.utils.book_append_sheet(wb, wsInscripcionesDetalladas, 'Inscripciones Detalladas')
+
+            // Generar nombre de archivo
+            const periodo = selectedPeriod !== 'all' ? periodos.find(p => p.id_periodo.toString() === selectedPeriod) : null
+            const carrera = selectedCarrera !== 'all' ? carreras.find(c => c.id_carrera.toString() === selectedCarrera) : null
+
+            let nombreArchivo = 'Reporte_Analitica_Completo'
+            if (periodo) nombreArchivo += `_${periodo.anio}-${periodo.etiqueta}`
+            if (carrera) nombreArchivo += `_${carrera.nombre.replace(/\s+/g, '_')}`
+            nombreArchivo += `_${new Date().toISOString().split('T')[0]}.xlsx`
+
+            // Descargar archivo
+            XLSX.writeFile(wb, nombreArchivo)
+
+            toast.success('Reporte completo de analítica generado exitosamente')
+
+        } catch (error) {
+            console.error('Error al generar reporte completo:', error)
+            toast.error('Error al generar el reporte completo')
+        } finally {
+            setGeneratingReport(false)
+        }
+    }
+
+    const generarReportePareto = async () => {
+        try {
+            setGeneratingReport(true)
+
+            const wb = XLSX.utils.book_new()
+
+            // Datos del análisis de Pareto
+            const paretoData = getAnalisisPareto()
+            const wsPareto = XLSX.utils.json_to_sheet(paretoData)
+            XLSX.utils.book_append_sheet(wb, wsPareto, 'Análisis de Pareto')
+
+            // Configuración utilizada
+            const configData = [
+                { 'Parámetro': 'Variable Analizada', 'Valor': paretoConfig.variable },
+                { 'Parámetro': 'Periodo', 'Valor': paretoConfig.periodo === 'all' ? 'Todos' : periodos.find(p => p.id_periodo.toString() === paretoConfig.periodo)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === paretoConfig.periodo)?.anio },
+                { 'Parámetro': 'Carrera', 'Valor': selectedCarrera === 'all' ? 'Todas' : carreras.find(c => c.id_carrera.toString() === selectedCarrera)?.nombre },
+                { 'Parámetro': 'Fecha Generación', 'Valor': new Date().toLocaleString() }
+            ]
+
+            const wsConfig = XLSX.utils.json_to_sheet(configData)
+            XLSX.utils.book_append_sheet(wb, wsConfig, 'Configuración')
+
+            let nombreArchivo = `Reporte_Pareto_${paretoConfig.variable}_${new Date().toISOString().split('T')[0]}.xlsx`
+            XLSX.writeFile(wb, nombreArchivo)
+
+            toast.success('Reporte de análisis de Pareto generado exitosamente')
+
+        } catch (error) {
+            console.error('Error al generar reporte Pareto:', error)
+            toast.error('Error al generar el reporte de Pareto')
+        } finally {
+            setGeneratingReport(false)
+        }
+    }
+
+    const generarReporteHistograma = async () => {
+        try {
+            setGeneratingReport(true)
+
+            const wb = XLSX.utils.book_new()
+
+            // Datos del histograma
+            const histogramData = getHistogramaCalificaciones()
+            const wsHistogram = XLSX.utils.json_to_sheet(histogramData)
+            XLSX.utils.book_append_sheet(wb, wsHistogram, 'Histograma')
+
+            // Configuración utilizada
+            const configData = [
+                { 'Parámetro': 'Variable Analizada', 'Valor': histogramConfig.variable },
+                { 'Parámetro': 'Periodo', 'Valor': histogramConfig.periodo === 'all' ? 'Todos' : periodos.find(p => p.id_periodo.toString() === histogramConfig.periodo)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === histogramConfig.periodo)?.anio },
+                { 'Parámetro': 'Carrera', 'Valor': histogramConfig.carrera === 'all' ? 'Todas' : carreras.find(c => c.id_carrera.toString() === histogramConfig.carrera)?.nombre },
+                { 'Parámetro': 'Fecha Generación', 'Valor': new Date().toLocaleString() }
+            ]
+
+            const wsConfig = XLSX.utils.json_to_sheet(configData)
+            XLSX.utils.book_append_sheet(wb, wsConfig, 'Configuración')
+
+            let nombreArchivo = `Reporte_Histograma_${histogramConfig.variable}_${new Date().toISOString().split('T')[0]}.xlsx`
+            XLSX.writeFile(wb, nombreArchivo)
+
+            toast.success('Reporte de histograma generado exitosamente')
+
+        } catch (error) {
+            console.error('Error al generar reporte histograma:', error)
+            toast.error('Error al generar el reporte de histograma')
+        } finally {
+            setGeneratingReport(false)
+        }
+    }
+
+    const generarReporteDispersion = async () => {
+        try {
+            setGeneratingReport(true)
+
+            const wb = XLSX.utils.book_new()
+
+            // Datos del diagrama de dispersión
+            const scatterData = getDispersionEstudio()
+            const wsScatter = XLSX.utils.json_to_sheet(scatterData)
+            XLSX.utils.book_append_sheet(wb, wsScatter, 'Diagrama de Dispersión')
+
+            // Configuración utilizada
+            const configData = [
+                { 'Parámetro': 'Variable X', 'Valor': scatterConfig.variableX },
+                { 'Parámetro': 'Variable Y', 'Valor': scatterConfig.variableY },
+                { 'Parámetro': 'Periodo', 'Valor': scatterConfig.periodo === 'all' ? 'Todos' : periodos.find(p => p.id_periodo.toString() === scatterConfig.periodo)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === scatterConfig.periodo)?.anio },
+                { 'Parámetro': 'Fecha Generación', 'Valor': new Date().toLocaleString() }
+            ]
+
+            const wsConfig = XLSX.utils.json_to_sheet(configData)
+            XLSX.utils.book_append_sheet(wb, wsConfig, 'Configuración')
+
+            let nombreArchivo = `Reporte_Dispersion_${scatterConfig.variableX}_vs_${scatterConfig.variableY}_${new Date().toISOString().split('T')[0]}.xlsx`
+            XLSX.writeFile(wb, nombreArchivo)
+
+            toast.success('Reporte de diagrama de dispersión generado exitosamente')
+
+        } catch (error) {
+            console.error('Error al generar reporte dispersión:', error)
+            toast.error('Error al generar el reporte de dispersión')
+        } finally {
+            setGeneratingReport(false)
+        }
+    }
+
+    const generarReporteControl = async () => {
+        try {
+            setGeneratingReport(true)
+
+            const wb = XLSX.utils.book_new()
+
+            // Datos del gráfico de control
+            const controlData = getControlReprobacion()
+            const wsControl = XLSX.utils.json_to_sheet(controlData)
+            XLSX.utils.book_append_sheet(wb, wsControl, 'Gráfico de Control')
+
+            // Configuración utilizada
+            const configData = [
+                { 'Parámetro': 'Variable Controlada', 'Valor': controlConfig.variable },
+                { 'Parámetro': 'Periodo', 'Valor': controlConfig.periodo === 'all' ? 'Todos' : periodos.find(p => p.id_periodo.toString() === controlConfig.periodo)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === controlConfig.periodo)?.anio },
+                { 'Parámetro': 'Carrera', 'Valor': controlConfig.carrera === 'all' ? 'Todas' : carreras.find(c => c.id_carrera.toString() === controlConfig.carrera)?.nombre },
+                { 'Parámetro': 'Fecha Generación', 'Valor': new Date().toLocaleString() }
+            ]
+
+            const wsConfig = XLSX.utils.json_to_sheet(configData)
+            XLSX.utils.book_append_sheet(wb, wsConfig, 'Configuración')
+
+            let nombreArchivo = `Reporte_Control_${controlConfig.variable}_${new Date().toISOString().split('T')[0]}.xlsx`
+            XLSX.writeFile(wb, nombreArchivo)
+
+            toast.success('Reporte de gráfico de control generado exitosamente')
+
+        } catch (error) {
+            console.error('Error al generar reporte control:', error)
+            toast.error('Error al generar el reporte de control')
+        } finally {
+            setGeneratingReport(false)
+        }
+    }
+
+    // Estilos de marca y utilidades visuales para PDF
+    const BRAND = {
+        primary: [240, 245, 255] as [number, number, number], // azul 600
+        dark: [31, 41, 55] as [number, number, number],
+        light: [243, 244, 246] as [number, number, number]
+    }
+
+    const drawHeaderBar = (pdf: jsPDF, title: string) => {
+        const pageWidth = pdf.internal.pageSize.getWidth()
+        pdf.setFillColor(...BRAND.primary)
+        pdf.rect(0, 0, pageWidth, 18, 'F')
+        pdf.setTextColor(0, 0, 0)
+        pdf.setFontSize(14)
+        pdf.text(title, 20, 12)
+        pdf.setTextColor(0, 0, 0)
+    }
+
+    const drawChips = (pdf: jsPDF, items: Array<{ label: string; value: string }>, startY: number): number => {
+        let x = 20
+        let y = startY
+        const pageWidth = pdf.internal.pageSize.getWidth()
+        const maxX = pageWidth - 20
+        pdf.setFontSize(9)
+        items.forEach(({ label, value }) => {
+            const text = `${label}: ${value}`
+            const width = pdf.getTextWidth(text) + 10
+            if (x + width > maxX) {
+                x = 20
+                y += 8
+            }
+            pdf.setDrawColor(229, 231, 235)
+            pdf.setFillColor(...BRAND.light)
+            pdf.roundedRect(x, y - 5, width, 8, 2, 2, 'FD')
+            pdf.text(text, x + 5, y)
+            x += width + 6
+        })
+        return y + 6
+    }
+
+    const drawDivider = (pdf: jsPDF, y: number): number => {
+        const pageWidth = pdf.internal.pageSize.getWidth()
+        pdf.setDrawColor(229, 231, 235)
+        pdf.line(20, y, pageWidth - 20, y)
+        return y + 6
+    }
+
+    const drawFooter = (pdf: jsPDF) => {
+        const pages = pdf.getNumberOfPages()
+        for (let i = 1; i <= pages; i++) {
+            pdf.setPage(i)
+            const pageWidth = pdf.internal.pageSize.getWidth()
+            const pageHeight = pdf.internal.pageSize.getHeight()
+            pdf.setFontSize(8)
+            pdf.setTextColor(107, 114, 128)
+            pdf.text(`Página ${i} de ${pages}` as any, pageWidth - 20, pageHeight - 10, { align: 'right' })
+        }
+        pdf.setTextColor(0, 0, 0)
+    }
+
+    // Funciones para generar PDFs
+    const generarPDFCompleto = async () => {
+        try {
+            setGeneratingReport(true)
+
+            // Esperar un poco para asegurar que los elementos estén renderizados
+            await new Promise(resolve => setTimeout(resolve, 1000))
+
+            const pdf = new jsPDF('p', 'mm', 'a4')
+            drawHeaderBar(pdf, 'Reporte de Analítica Académica')
+            let yPosition = 26
+
+            // Información del reporte como chips
+            const periodo = selectedPeriod !== 'all' ? periodos.find(p => p.id_periodo.toString() === selectedPeriod) : null
+            const carrera = selectedCarrera !== 'all' ? carreras.find(c => c.id_carrera.toString() === selectedCarrera) : null
+
+            yPosition = drawChips(pdf, [
+                { label: 'Periodo', value: periodo ? `${periodo.anio}-${periodo.etiqueta}` : 'Todos' },
+                { label: 'Carrera', value: carrera ? carrera.nombre : 'Todas' },
+                { label: 'Fecha', value: new Date().toLocaleDateString() }
+            ], yPosition)
+            yPosition = drawDivider(pdf, yPosition)
+
+            // Resumen ejecutivo
+            pdf.setFontSize(16)
+            pdf.text('Resumen Ejecutivo', 20, yPosition)
+            yPosition += 10
+
+            pdf.setFontSize(10)
+            pdf.text(`Total Estudiantes: ${filteredEstudiantes.length}`, 20, yPosition)
+            yPosition += 6
+            pdf.text(`Total Factores de Riesgo: ${filteredFactores.length}`, 20, yPosition)
+            yPosition += 6
+            pdf.text(`Total Inscripciones: ${filteredInscripciones.length}`, 20, yPosition)
+            yPosition += 6
+            const tasaAprobacion = filteredInscripciones.length > 0 ? ((filteredInscripciones.filter(ins => ins.aprobado).length / filteredInscripciones.length) * 100).toFixed(1) : '0.0'
+            pdf.text(`Tasa de Aprobación: ${tasaAprobacion}%`, 20, yPosition)
+            yPosition += 15
+
+            // Capturar gráficos como imágenes
+            const chartElements = [
+                { id: 'pareto-chart', title: 'Análisis de Pareto' },
+                { id: 'control-chart', title: 'Gráfico de Control' },
+                { id: 'scatter-chart', title: 'Diagrama de Dispersión' },
+                { id: 'histogram-chart', title: 'Histograma de Calificaciones' }
+            ]
+
+            // Buscar todos los ChartContainers disponibles
+            const chartContainers = document.querySelectorAll('.recharts-wrapper')
+            console.log('ChartContainers encontrados para PDF completo:', chartContainers.length)
+
+            for (let i = 0; i < chartElements.length; i++) {
+                const chart = chartElements[i]
+                let element = document.getElementById(chart.id)
+                console.log(`Buscando elemento con ID: ${chart.id}`, element)
+
+                // Si no se encuentra por ID, usar por posición
+                if (!element && i < chartContainers.length) {
+                    element = chartContainers[i] as HTMLElement
+                    console.log(`Usando ChartContainer en posición ${i} para ${chart.title}:`, element)
+                }
+
+                if (element) {
+                    // Nueva página si es necesario
+                    if (yPosition > 200) {
+                        pdf.addPage()
+                        yPosition = 20
+                    }
+
+                    pdf.setFontSize(14)
+                    pdf.setTextColor(...BRAND.dark)
+                    pdf.text(chart.title, 20, yPosition)
+                    yPosition += 10
+
+                    try {
+                        const svg = getChartSvgFromContainer(element)
+                        if (!svg) {
+                            pdf.text(`No se encontró SVG para ${chart.title}`, 20, yPosition)
+                            yPosition += 10
+                        } else {
+                            const imgData = await svgToPngDataUrl(svg, 1000)
+                            const imgWidth = 170
+                            // Calcular altura manteniendo proporción del PNG generado (A4 ~ 210mm ancho - márgenes)
+                            const tempImg = new Image()
+                            await new Promise<void>((resolve) => { tempImg.onload = () => resolve(); tempImg.src = imgData })
+                            const imgHeight = (tempImg.height * imgWidth) / tempImg.width
+
+                            pdf.addImage(imgData, 'PNG', 20, yPosition, imgWidth, imgHeight)
+                            yPosition += imgHeight + 8
+
+                            // Tabla de datos del gráfico
+                            pdf.setFontSize(12)
+                            pdf.text('Datos del análisis', 20, yPosition)
+                            yPosition += 6
+
+                            switch (chart.title) {
+                                case 'Análisis de Pareto': {
+                                    const data = getAnalisisPareto().slice(0, 12)
+                                    const headers = ['Categoría', 'Reprobados', '% acumulado']
+                                    const rows = data.map(d => [d.grupo, d.reprobados, `${d.porcentaje}%`])
+                                    yPosition = drawTable(pdf, headers, rows, yPosition)
+                                    break
+                                }
+                                case 'Gráfico de Control': {
+                                    const data = getControlReprobacion()
+                                    const headers = ['Periodo', controlConfig.variable]
+                                    const rows = data.map(d => [d.periodo, `${d[controlConfig.variable]}%`])
+                                    yPosition = drawTable(pdf, headers, rows, yPosition)
+                                    break
+                                }
+                                case 'Diagrama de Dispersión': {
+                                    const data = getDispersionEstudio().slice(0, 20)
+                                    const headers = ['Estudiante', scatterConfig.variableX, scatterConfig.variableY]
+                                    const rows = data.map(d => [d.estudiante, d[scatterConfig.variableX], d[scatterConfig.variableY]])
+                                    yPosition = drawTable(pdf, headers, rows, yPosition)
+                                    break
+                                }
+                                case 'Histograma de Calificaciones': {
+                                    const data = getHistogramaCalificaciones()
+                                    const headers = ['Rango', 'Frecuencia']
+                                    const rows = data.map(d => [d.rango, d.frecuencia])
+                                    yPosition = drawTable(pdf, headers, rows, yPosition)
+                                    break
+                                }
+                            }
+
+                            yPosition = drawDivider(pdf, yPosition)
+                        }
+                    } catch (error) {
+                        console.error(`Error capturando ${chart.title}:`, error)
+                        pdf.text(`Error al capturar ${chart.title}`, 20, yPosition)
+                        yPosition += 10
+                    }
+                }
+            }
+
+            // Datos tabulares
+            pdf.addPage()
+            drawHeaderBar(pdf, 'Datos Detallados')
+            yPosition = 26
+
+            pdf.setFontSize(16)
+            pdf.text('Datos Detallados', 20, yPosition)
+            yPosition += 12
+
+            // Top factores de riesgo (tabla)
+            pdf.setFontSize(12)
+            pdf.text('Top Factores de Riesgo', 20, yPosition)
+            yPosition += 6
+            {
+                const topFactores = getTopFactoresRiesgo().slice(0, 15)
+                const headers = ['Factor', 'Cantidad', 'Severidad prom.']
+                const rows = topFactores.map(f => [f.factor, f.cantidad, f.severidadPromedio.toFixed(1)])
+                yPosition = drawTable(pdf, headers, rows, yPosition)
+            }
+
+            yPosition = drawDivider(pdf, yPosition)
+
+            // Rendimiento por carrera (tabla)
+            pdf.setFontSize(12)
+            pdf.text('Rendimiento por Carrera', 20, yPosition)
+            yPosition += 6
+            {
+                const rendimiento = getRendimientoPorCarrera()
+                const headers = ['Carrera', '% Aprobación', 'Inscripciones']
+                const rows = rendimiento.map(r => [r.carrera, `${r.porcentajeAprobacion}%`, r.inscripciones])
+                yPosition = drawTable(pdf, headers, rows, yPosition)
+            }
+
+            // Pie de página
+            drawFooter(pdf)
+
+            // Generar nombre de archivo
+            let nombreArchivo = 'Reporte_Analitica_Completo'
+            if (periodo) nombreArchivo += `_${periodo.anio}-${periodo.etiqueta}`
+            if (carrera) nombreArchivo += `_${carrera.nombre.replace(/\s+/g, '_')}`
+            nombreArchivo += `_${new Date().toISOString().split('T')[0]}.pdf`
+
+            // Descargar PDF
+            pdf.save(nombreArchivo)
+
+            toast.success('Reporte PDF completo generado exitosamente')
+
+        } catch (error) {
+            console.error('Error al generar PDF completo:', error)
+            toast.error('Error al generar el reporte PDF')
+        } finally {
+            setGeneratingReport(false)
+        }
+    }
+
+    const generarPDFIndividual = async (chartType: string) => {
+        try {
+            setGeneratingReport(true)
+
+            // Esperar un poco para asegurar que los elementos estén renderizados
+            await new Promise(resolve => setTimeout(resolve, 1000))
+
+            const pdf = new jsPDF('p', 'mm', 'a4')
+            drawHeaderBar(pdf, `Reporte de ${chartType}`)
+            let yPosition = 26
+
+            // Información del reporte como chips
+            const periodo = selectedPeriod !== 'all' ? periodos.find(p => p.id_periodo.toString() === selectedPeriod) : null
+            const carrera = selectedCarrera !== 'all' ? carreras.find(c => c.id_carrera.toString() === selectedCarrera) : null
+
+            yPosition = drawChips(pdf, [
+                { label: 'Periodo', value: periodo ? `${periodo.anio}-${periodo.etiqueta}` : 'Todos' },
+                { label: 'Carrera', value: carrera ? carrera.nombre : 'Todas' },
+                { label: 'Fecha', value: new Date().toLocaleDateString() }
+            ], yPosition)
+            yPosition = drawDivider(pdf, yPosition)
+
+            // Capturar gráfico específico
+            let chartId = ''
+            switch (chartType) {
+                case 'Análisis de Pareto':
+                    chartId = 'pareto-chart'
+                    break
+                case 'Gráfico de Control':
+                    chartId = 'control-chart'
+                    break
+                case 'Diagrama de Dispersión':
+                    chartId = 'scatter-chart'
+                    break
+                case 'Histograma de Calificaciones':
+                    chartId = 'histogram-chart'
+                    break
+                default:
+                    chartId = `${chartType.toLowerCase().replace(/\s+/g, '-')}-chart`
+            }
+
+            let element = document.getElementById(chartId)
+            console.log(`Buscando elemento con ID: ${chartId}`, element)
+            console.log('Todos los elementos con ID que contienen "chart":',
+                Array.from(document.querySelectorAll('[id*="chart"]')).map(el => el.id))
+
+            // Si no se encuentra por ID, buscar por posición en el DOM
+            if (!element) {
+                console.log('Elemento no encontrado por ID, buscando por posición...')
+
+                // Buscar todos los ChartContainers
+                const chartContainers = document.querySelectorAll('.recharts-wrapper')
+                console.log('ChartContainers encontrados:', chartContainers.length)
+
+                // Mapear por posición (asumiendo orden específico)
+                let chartIndex = -1
+                switch (chartType) {
+                    case 'Análisis de Pareto':
+                        chartIndex = 0
+                        break
+                    case 'Gráfico de Control':
+                        chartIndex = 1
+                        break
+                    case 'Diagrama de Dispersión':
+                        chartIndex = 2
+                        break
+                    case 'Histograma de Calificaciones':
+                        chartIndex = 3
+                        break
+                }
+
+                if (chartIndex >= 0 && chartIndex < chartContainers.length) {
+                    element = chartContainers[chartIndex] as HTMLElement
+                    console.log(`Usando ChartContainer en posición ${chartIndex}:`, element)
+                } else {
+                    console.log('No se pudo encontrar el gráfico por posición')
+                }
+            }
+
+            if (element) {
+                try {
+                    const svg = getChartSvgFromContainer(element)
+                    if (!svg) {
+                        pdf.text(`No se encontró SVG para ${chartType}`, 20, yPosition)
+                    } else {
+                        const imgData = await svgToPngDataUrl(svg, 1000)
+                        const imgWidth = 170
+                        const tempImg = new Image()
+                        await new Promise<void>((resolve) => { tempImg.onload = () => resolve(); tempImg.src = imgData })
+                        const imgHeight = (tempImg.height * imgWidth) / tempImg.width
+
+                        pdf.addImage(imgData, 'PNG', 20, yPosition, imgWidth, imgHeight)
+                        yPosition += imgHeight + 15
+                    }
+
+                    // Agregar datos tabulares
+                    pdf.setFontSize(12)
+                    pdf.text('Datos del Análisis', 20, yPosition)
+                    yPosition += 6
+
+                    switch (chartType) {
+                        case 'Análisis de Pareto': {
+                            const data = getAnalisisPareto().slice(0, 15)
+                            const headers = ['Categoría', 'Reprobados', '% acumulado']
+                            const rows = data.map(d => [d.grupo, d.reprobados, `${d.porcentaje}%`])
+                            yPosition = drawTable(pdf, headers, rows, yPosition)
+                            break
+                        }
+                        case 'Gráfico de Control': {
+                            const data = getControlReprobacion()
+                            const headers = ['Periodo', controlConfig.variable]
+                            const rows = data.map(d => [d.periodo, `${d[controlConfig.variable]}%`])
+                            yPosition = drawTable(pdf, headers, rows, yPosition)
+                            break
+                        }
+                        case 'Diagrama de Dispersión': {
+                            const data = getDispersionEstudio().slice(0, 20)
+                            const headers = ['Estudiante', scatterConfig.variableX, scatterConfig.variableY]
+                            const rows = data.map(d => [d.estudiante, d[scatterConfig.variableX], d[scatterConfig.variableY]])
+                            yPosition = drawTable(pdf, headers, rows, yPosition)
+                            break
+                        }
+                        case 'Histograma de Calificaciones': {
+                            const data = getHistogramaCalificaciones()
+                            const headers = ['Rango', 'Frecuencia']
+                            const rows = data.map(d => [d.rango, d.frecuencia])
+                            yPosition = drawTable(pdf, headers, rows, yPosition)
+                            break
+                        }
+                    }
+
+                } catch (error) {
+                    console.error(`Error capturando ${chartType}:`, error)
+                    pdf.text(`Error al capturar ${chartType}`, 20, yPosition)
+                }
+            } else {
+                pdf.text(`No se encontró el gráfico ${chartType}`, 20, yPosition)
+            }
+
+            // Pie de página y nombre de archivo
+            drawFooter(pdf)
+
+            // Generar nombre de archivo
+            let nombreArchivo = `Reporte_${chartType.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+
+            // Descargar PDF
+            pdf.save(nombreArchivo)
+
+            toast.success(`Reporte PDF de ${chartType} generado exitosamente`)
+
+        } catch (error) {
+            console.error(`Error al generar PDF de ${chartType}:`, error)
+            toast.error(`Error al generar el reporte PDF de ${chartType}`)
+        } finally {
+            setGeneratingReport(false)
+        }
+    }
+
     const getTopFactoresRiesgo = () => {
         const factoresCount = filteredFactores.reduce((acc: any, ef) => {
             const factor = ef.factor?.nombre || 'Sin factor'
@@ -774,121 +1547,154 @@ export default function AnaliticaPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline">
-                            <Download className="h-4 w-4 mr-2" />
-                            Exportar
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" disabled={generatingReport}>
+                                    <Download className="h-4 w-4 mr-2" />
+                                    {generatingReport ? 'Generando...' : 'Exportar Reportes'}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={generarPDFCompleto}>
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Reporte PDF Completo
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => generarPDFIndividual('Análisis de Pareto')}>
+                                    <BarChart3 className="h-4 w-4 mr-2" />
+                                    PDF Análisis de Pareto
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => generarPDFIndividual('Histograma de Calificaciones')}>
+                                    <BarChart2 className="h-4 w-4 mr-2" />
+                                    PDF Histograma
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => generarPDFIndividual('Diagrama de Dispersión')}>
+                                    <Circle className="h-4 w-4 mr-2" />
+                                    PDF Diagrama de Dispersión
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => generarPDFIndividual('Gráfico de Control')}>
+                                    <ControlChart className="h-4 w-4 mr-2" />
+                                    PDF Gráfico de Control
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
 
-                {/* Filtros */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Filter className="h-5 w-5" />
-                            Filtros de Análisis
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="w-full">
-                                <label className="text-sm font-medium mb-2 block">Período</label>
-                                <Select value={selectedPeriod} onValueChange={setSelectedPeriod} >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Todos los períodos" />
-                                    </SelectTrigger>
-                                    <SelectContent className="w-full">
-                                        <SelectItem value="all">Todos los períodos</SelectItem>
-                                        {periodos.map((periodo) => (
-                                            <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
-                                                {periodo.anio} - {periodo.etiqueta}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="w-full">
-                                <label className="text-sm font-medium mb-2 block">Carrera</label>
-                                <Select value={selectedCarrera} onValueChange={setSelectedCarrera}>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Todas las carreras" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todas las carreras</SelectItem>
-                                        {carreras.map((carrera) => (
-                                            <SelectItem key={carrera.id_carrera} value={carrera.id_carrera.toString()}>
-                                                {carrera.nombre}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex items-end">
-                                <Button onClick={fetchData} className="w-full">
-                                    <Activity className="h-4 w-4 mr-2" />
-                                    Actualizar
-                                </Button>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Lanzadores de análisis (cards) */}
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    {/* Helper invisible para scroll */}
+                    {null}
 
-                {/* KPIs */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Estudiantes</CardTitle>
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{filteredEstudiantes.length}</div>
-                            <p className="text-xs text-muted-foreground">
-                                Estudiantes activos
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Factores de Riesgo</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{filteredFactores.length}</div>
-                            <p className="text-xs text-muted-foreground">
-                                Registros identificados
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Inscripciones</CardTitle>
-                            <BookOpen className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{filteredInscripciones.length}</div>
-                            <p className="text-xs text-muted-foreground">
-                                Total de inscripciones
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">% Aprobación</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">
-                                {filteredInscripciones.length > 0
-                                    ? ((filteredInscripciones.filter(ins => ins.aprobado).length / filteredInscripciones.length) * 100).toFixed(1)
-                                    : '0.0'
-                                }%
+                    {/* Card: Rendimiento Académico */}
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <BarChart3 className="h-8 w-8 text-blue-600" />
+                                <Badge variant="outline">Académico</Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                Tasa de aprobación
+                            <CardTitle className="text-lg">Rendimiento Académico</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Análisis de calificaciones, promedios y tendencias por carrera
                             </p>
+                            <Button
+                                size="sm"
+                                className="w-full"
+                                onClick={() => {
+                                    setHistogramDialogOpen(true)
+                                    document.getElementById('histogram-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                }}
+                            >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Generar
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    {/* Card: Factores de Riesgo */}
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <AlertTriangle className="h-8 w-8 text-red-600" />
+                                <Badge variant="outline">Riesgo</Badge>
+                            </div>
+                            <CardTitle className="text-lg">Factores de Riesgo</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Identificación y análisis de factores que afectan el rendimiento
+                            </p>
+                            <Button
+                                size="sm"
+                                className="w-full"
+                                onClick={() => {
+                                    setParetoDialogOpen(true)
+                                    document.getElementById('pareto-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                }}
+                            >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Generar
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    {/* Card: Estadísticas Generales */}
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <PieChartIcon className="h-8 w-8 text-green-600" />
+                                <Badge variant="outline">Estadístico</Badge>
+                            </div>
+                            <CardTitle className="text-lg">Estadísticas Generales</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Métricas generales del sistema y comparativas
+                            </p>
+                            <Button
+                                size="sm"
+                                className="w-full"
+                                onClick={() => {
+                                    setControlDialogOpen(true)
+                                    document.getElementById('control-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                }}
+                            >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Generar
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    {/* Card: Reporte de Asistencia */}
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <Users className="h-8 w-8 text-purple-600" />
+                                <Badge variant="outline">Asistencia</Badge>
+                            </div>
+                            <CardTitle className="text-lg">Reporte de Asistencia</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Análisis de asistencia por materia, grupo y periodo
+                            </p>
+                            <Button
+                                size="sm"
+                                className="w-full"
+                                onClick={() => {
+                                    setControlConfig(prev => ({ ...prev, variable: 'asistencia' }))
+                                    setControlDialogOpen(true)
+                                    document.getElementById('control-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                }}
+                            >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Generar
+                            </Button>
                         </CardContent>
                     </Card>
                 </div>
+
                 {/* Análisis Específicos de Calidad */}
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold tracking-tight">Análisis Específicos de Calidad</h2>
@@ -903,65 +1709,80 @@ export default function AnaliticaPage() {
                                         <BarChart3 className="h-5 w-5" />
                                         <CardTitle>Análisis de Pareto</CardTitle>
                                     </div>
-                                    <Dialog open={paretoDialogOpen} onOpenChange={setParetoDialogOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" size="sm">
-                                                <Filter className="h-4 w-4 mr-2" />
-                                                Configurar
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
-                                                <DialogTitle>Configurar Análisis de Pareto</DialogTitle>
-                                                <DialogDescription>
-                                                    Selecciona los parámetros para generar el gráfico de Pareto
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="pareto-periodo">Seleccionar semestre</Label>
-                                                    <Select value={paretoConfig.periodo} onValueChange={(value) => setParetoConfig(prev => ({ ...prev, periodo: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona un periodo" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="all">Todos los periodos</SelectItem>
-                                                            {periodos.map((periodo) => (
-                                                                <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
-                                                                    {periodo.etiqueta} {periodo.anio}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                    <div className="flex gap-2">
+                                        <Dialog open={paretoDialogOpen} onOpenChange={setParetoDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="sm">
+                                                    <Filter className="h-4 w-4 mr-2" />
+                                                    Configurar
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-md">
+                                                <DialogHeader>
+                                                    <DialogTitle>Configurar Análisis de Pareto</DialogTitle>
+                                                    <DialogDescription>
+                                                        Selecciona los parámetros para generar el gráfico de Pareto
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="pareto-periodo">Seleccionar semestre</Label>
+                                                        <Select value={paretoConfig.periodo} onValueChange={(value) => setParetoConfig(prev => ({ ...prev, periodo: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona un periodo" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">Todos los periodos</SelectItem>
+                                                                {periodos.map((periodo) => (
+                                                                    <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
+                                                                        {periodo.etiqueta} {periodo.anio}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="pareto-variable">Variable a analizar</Label>
+                                                        <Select value={paretoConfig.variable} onValueChange={(value) => setParetoConfig(prev => ({ ...prev, variable: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona variable" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="factores">Factores de riesgo</SelectItem>
+                                                                <SelectItem value="materias">Materias reprobadas</SelectItem>
+                                                                <SelectItem value="carreras">Carreras con problemas</SelectItem>
+                                                                <SelectItem value="grupos">Grupos problemáticos</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button variant="outline" onClick={() => setParetoDialogOpen(false)}>
+                                                            Cancelar
+                                                        </Button>
+                                                        <Button
+                                                            disabled={generatingReport}
+                                                            onClick={async () => {
+                                                                setParetoDialogOpen(false)
+                                                                toast.success('Configuración de Pareto aplicada')
+                                                                await generarPDFCompleto()
+                                                            }}
+                                                        >
+                                                            {generatingReport ? 'Generando PDF...' : 'Generar'}
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="pareto-variable">Variable a analizar</Label>
-                                                    <Select value={paretoConfig.variable} onValueChange={(value) => setParetoConfig(prev => ({ ...prev, variable: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona variable" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="factores">Factores de riesgo</SelectItem>
-                                                            <SelectItem value="materias">Materias reprobadas</SelectItem>
-                                                            <SelectItem value="carreras">Carreras con problemas</SelectItem>
-                                                            <SelectItem value="grupos">Grupos problemáticos</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="flex justify-end gap-2">
-                                                    <Button variant="outline" onClick={() => setParetoDialogOpen(false)}>
-                                                        Cancelar
-                                                    </Button>
-                                                    <Button onClick={() => {
-                                                        setParetoDialogOpen(false)
-                                                        toast.success('Configuración de Pareto aplicada')
-                                                    }}>
-                                                        Generar Gráfico
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
+                                            </DialogContent>
+                                        </Dialog>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => generarPDFIndividual('Análisis de Pareto')}
+                                            disabled={generatingReport}
+                                        >
+                                            <Download className="h-4 w-4 mr-2" />
+                                            PDF
+                                        </Button>
+                                    </div>
                                 </div>
                                 <CardDescription>
                                     Factores que más afectan por grupo
@@ -969,6 +1790,7 @@ export default function AnaliticaPage() {
                             </CardHeader>
                             <CardContent>
                                 <ChartContainer
+                                    id="pareto-chart"
                                     config={{
                                         grupo: {
                                             label: "Grupo",
@@ -998,81 +1820,96 @@ export default function AnaliticaPage() {
                                         <ControlChart className="h-5 w-5" />
                                         <CardTitle>Gráfico de Control</CardTitle>
                                     </div>
-                                    <Dialog open={controlDialogOpen} onOpenChange={setControlDialogOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" size="sm">
-                                                <Filter className="h-4 w-4 mr-2" />
-                                                Configurar
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
-                                                <DialogTitle>Configurar Gráfico de Control</DialogTitle>
-                                                <DialogDescription>
-                                                    Selecciona los parámetros para generar el gráfico de control
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="control-periodo">Seleccionar semestre</Label>
-                                                    <Select value={controlConfig.periodo} onValueChange={(value) => setControlConfig(prev => ({ ...prev, periodo: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona un periodo" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="all">Todos los periodos</SelectItem>
-                                                            {periodos.map((periodo) => (
-                                                                <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
-                                                                    {periodo.etiqueta} {periodo.anio}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                    <div className="flex gap-2">
+                                        <Dialog open={controlDialogOpen} onOpenChange={setControlDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="sm">
+                                                    <Filter className="h-4 w-4 mr-2" />
+                                                    Configurar
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-md">
+                                                <DialogHeader>
+                                                    <DialogTitle>Configurar Gráfico de Control</DialogTitle>
+                                                    <DialogDescription>
+                                                        Selecciona los parámetros para generar el gráfico de control
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="control-periodo">Seleccionar semestre</Label>
+                                                        <Select value={controlConfig.periodo} onValueChange={(value) => setControlConfig(prev => ({ ...prev, periodo: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona un periodo" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">Todos los periodos</SelectItem>
+                                                                {periodos.map((periodo) => (
+                                                                    <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
+                                                                        {periodo.etiqueta} {periodo.anio}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="control-carrera">Carrera</Label>
+                                                        <Select value={controlConfig.carrera} onValueChange={(value) => setControlConfig(prev => ({ ...prev, carrera: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona una carrera" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">Todas las carreras</SelectItem>
+                                                                {carreras.map((carrera) => (
+                                                                    <SelectItem key={carrera.id_carrera} value={carrera.id_carrera.toString()}>
+                                                                        {carrera.nombre}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="control-variable">Variable a controlar</Label>
+                                                        <Select value={controlConfig.variable} onValueChange={(value) => setControlConfig(prev => ({ ...prev, variable: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona variable" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="reprobacion">Tasa de Reprobación</SelectItem>
+                                                                <SelectItem value="desercion">Tasa de Deserción</SelectItem>
+                                                                <SelectItem value="asistencia">Promedio de Asistencia</SelectItem>
+                                                                <SelectItem value="calificacion">Promedio de Calificaciones</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button variant="outline" onClick={() => setControlDialogOpen(false)}>
+                                                            Cancelar
+                                                        </Button>
+                                                        <Button
+                                                            disabled={generatingReport}
+                                                            onClick={async () => {
+                                                                setControlDialogOpen(false)
+                                                                toast.success('Configuración de control aplicada')
+                                                                await generarPDFCompleto()
+                                                            }}
+                                                        >
+                                                            {generatingReport ? 'Generando PDF...' : 'Generar'}
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="control-carrera">Carrera</Label>
-                                                    <Select value={controlConfig.carrera} onValueChange={(value) => setControlConfig(prev => ({ ...prev, carrera: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona una carrera" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="all">Todas las carreras</SelectItem>
-                                                            {carreras.map((carrera) => (
-                                                                <SelectItem key={carrera.id_carrera} value={carrera.id_carrera.toString()}>
-                                                                    {carrera.nombre}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="control-variable">Variable a controlar</Label>
-                                                    <Select value={controlConfig.variable} onValueChange={(value) => setControlConfig(prev => ({ ...prev, variable: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona variable" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="reprobacion">Tasa de Reprobación</SelectItem>
-                                                            <SelectItem value="desercion">Tasa de Deserción</SelectItem>
-                                                            <SelectItem value="asistencia">Promedio de Asistencia</SelectItem>
-                                                            <SelectItem value="calificacion">Promedio de Calificaciones</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="flex justify-end gap-2">
-                                                    <Button variant="outline" onClick={() => setControlDialogOpen(false)}>
-                                                        Cancelar
-                                                    </Button>
-                                                    <Button onClick={() => {
-                                                        setControlDialogOpen(false)
-                                                        toast.success('Configuración de control aplicada')
-                                                    }}>
-                                                        Generar Gráfico
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
+                                            </DialogContent>
+                                        </Dialog>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => generarPDFIndividual('Gráfico de Control')}
+                                            disabled={generatingReport}
+                                        >
+                                            <Download className="h-4 w-4 mr-2" />
+                                            PDF
+                                        </Button>
+                                    </div>
                                 </div>
                                 <CardDescription>
                                     Evolución de reprobación por semestre
@@ -1080,6 +1917,7 @@ export default function AnaliticaPage() {
                             </CardHeader>
                             <CardContent>
                                 <ChartContainer
+                                    id="control-chart"
                                     config={{
                                         periodo: {
                                             label: "Período",
@@ -1113,83 +1951,98 @@ export default function AnaliticaPage() {
                                         <Circle className="h-5 w-5" />
                                         <CardTitle>Diagrama de Dispersión</CardTitle>
                                     </div>
-                                    <Dialog open={scatterDialogOpen} onOpenChange={setScatterDialogOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" size="sm">
-                                                <Filter className="h-4 w-4 mr-2" />
-                                                Configurar
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
-                                                <DialogTitle>Configurar Diagrama de Dispersión</DialogTitle>
-                                                <DialogDescription>
-                                                    Selecciona las variables para los ejes X e Y
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="scatter-periodo">Semestre</Label>
-                                                    <Select value={scatterConfig.periodo} onValueChange={(value) => setScatterConfig(prev => ({ ...prev, periodo: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona un periodo" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="all">Todos los periodos</SelectItem>
-                                                            {periodos.map((periodo) => (
-                                                                <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
-                                                                    {periodo.etiqueta} {periodo.anio}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex gap-2">
+                                        <Dialog open={scatterDialogOpen} onOpenChange={setScatterDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="sm">
+                                                    <Filter className="h-4 w-4 mr-2" />
+                                                    Configurar
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-md">
+                                                <DialogHeader>
+                                                    <DialogTitle>Configurar Diagrama de Dispersión</DialogTitle>
+                                                    <DialogDescription>
+                                                        Selecciona las variables para los ejes X e Y
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="space-y-4">
                                                     <div className="space-y-2">
-                                                        <Label htmlFor="scatter-x">Variable X</Label>
-                                                        <Select value={scatterConfig.variableX} onValueChange={(value) => setScatterConfig(prev => ({ ...prev, variableX: value }))}>
+                                                        <Label htmlFor="scatter-periodo">Semestre</Label>
+                                                        <Select value={scatterConfig.periodo} onValueChange={(value) => setScatterConfig(prev => ({ ...prev, periodo: value }))}>
                                                             <SelectTrigger>
-                                                                <SelectValue placeholder="Eje X" />
+                                                                <SelectValue placeholder="Selecciona un periodo" />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="asistencia">Asistencia</SelectItem>
-                                                                <SelectItem value="horas_estudio">Horas de Estudio</SelectItem>
-                                                                <SelectItem value="factores_riesgo">Factores de Riesgo</SelectItem>
-                                                                <SelectItem value="edad">Edad</SelectItem>
-                                                                <SelectItem value="semestre">Semestre</SelectItem>
+                                                                <SelectItem value="all">Todos los periodos</SelectItem>
+                                                                {periodos.map((periodo) => (
+                                                                    <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
+                                                                        {periodo.etiqueta} {periodo.anio}
+                                                                    </SelectItem>
+                                                                ))}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="scatter-y">Variable Y</Label>
-                                                        <Select value={scatterConfig.variableY} onValueChange={(value) => setScatterConfig(prev => ({ ...prev, variableY: value }))}>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Eje Y" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="promedio">Promedio Notas</SelectItem>
-                                                                <SelectItem value="calificacion">Calificación Final</SelectItem>
-                                                                <SelectItem value="asistencia">Asistencia</SelectItem>
-                                                                <SelectItem value="reprobacion">Tasa Reprobación</SelectItem>
-                                                                <SelectItem value="desercion">Tasa Deserción</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="scatter-x">Variable X</Label>
+                                                            <Select value={scatterConfig.variableX} onValueChange={(value) => setScatterConfig(prev => ({ ...prev, variableX: value }))}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Eje X" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="asistencia">Asistencia</SelectItem>
+                                                                    <SelectItem value="horas_estudio">Horas de Estudio</SelectItem>
+                                                                    <SelectItem value="factores_riesgo">Factores de Riesgo</SelectItem>
+                                                                    <SelectItem value="edad">Edad</SelectItem>
+                                                                    <SelectItem value="semestre">Semestre</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="scatter-y">Variable Y</Label>
+                                                            <Select value={scatterConfig.variableY} onValueChange={(value) => setScatterConfig(prev => ({ ...prev, variableY: value }))}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Eje Y" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="promedio">Promedio Notas</SelectItem>
+                                                                    <SelectItem value="calificacion">Calificación Final</SelectItem>
+                                                                    <SelectItem value="asistencia">Asistencia</SelectItem>
+                                                                    <SelectItem value="reprobacion">Tasa Reprobación</SelectItem>
+                                                                    <SelectItem value="desercion">Tasa Deserción</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button variant="outline" onClick={() => setScatterDialogOpen(false)}>
+                                                            Cancelar
+                                                        </Button>
+                                                        <Button
+                                                            disabled={generatingReport}
+                                                            onClick={async () => {
+                                                                setScatterDialogOpen(false)
+                                                                toast.success('Configuración de dispersión aplicada')
+                                                                await generarPDFCompleto()
+                                                            }}
+                                                        >
+                                                            {generatingReport ? 'Generando PDF...' : 'Generar'}
+                                                        </Button>
                                                     </div>
                                                 </div>
-                                                <div className="flex justify-end gap-2">
-                                                    <Button variant="outline" onClick={() => setScatterDialogOpen(false)}>
-                                                        Cancelar
-                                                    </Button>
-                                                    <Button onClick={() => {
-                                                        setScatterDialogOpen(false)
-                                                        toast.success('Configuración de dispersión aplicada')
-                                                    }}>
-                                                        Exportar gráfico
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
+                                            </DialogContent>
+                                        </Dialog>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => generarPDFIndividual('Diagrama de Dispersión')}
+                                            disabled={generatingReport}
+                                        >
+                                            <Download className="h-4 w-4 mr-2" />
+                                            PDF
+                                        </Button>
+                                    </div>
                                 </div>
                                 <CardDescription>
                                     Relación entre horas de estudio y calificación
@@ -1197,6 +2050,7 @@ export default function AnaliticaPage() {
                             </CardHeader>
                             <CardContent>
                                 <ChartContainer
+                                    id="scatter-chart"
                                     config={{
                                         [scatterConfig.variableX]: {
                                             label: scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' :
@@ -1213,7 +2067,7 @@ export default function AnaliticaPage() {
                                                             scatterConfig.variableY === 'desercion' ? 'Deserción' : 'Variable Y',
                                         },
                                     }}
-                                    className="h-full w-full"
+                                    className="h-[300px] w-full"
                                 >
                                     <ScatterChart data={getDispersionEstudio()}>
                                         <CartesianGrid strokeDasharray="3 3" />
@@ -1234,81 +2088,94 @@ export default function AnaliticaPage() {
                                         <BarChart2 className="h-5 w-5" />
                                         <CardTitle>Histograma de Calificaciones</CardTitle>
                                     </div>
-                                    <Dialog open={histogramDialogOpen} onOpenChange={setHistogramDialogOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" size="sm">
-                                                <Filter className="h-4 w-4 mr-2" />
-                                                Configurar
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
+                                    <div className="flex gap-2">
+                                        <Dialog open={histogramDialogOpen} onOpenChange={setHistogramDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="sm">
+                                                    <Filter className="h-4 w-4 mr-2" />
+                                                    Configurar
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-md">
                                                 <DialogTitle>Configurar Histograma</DialogTitle>
                                                 <DialogDescription>
                                                     Selecciona los parámetros para generar el histograma
                                                 </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="histogram-periodo">Seleccionar semestre</Label>
-                                                    <Select value={histogramConfig.periodo} onValueChange={(value) => setHistogramConfig(prev => ({ ...prev, periodo: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona un periodo" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="all">Todos los periodos</SelectItem>
-                                                            {periodos.map((periodo) => (
-                                                                <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
-                                                                    {periodo.etiqueta} {periodo.anio}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="histogram-periodo">Seleccionar semestre</Label>
+                                                        <Select value={histogramConfig.periodo} onValueChange={(value) => setHistogramConfig(prev => ({ ...prev, periodo: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona un periodo" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">Todos los periodos</SelectItem>
+                                                                {periodos.map((periodo) => (
+                                                                    <SelectItem key={periodo.id_periodo} value={periodo.id_periodo.toString()}>
+                                                                        {periodo.etiqueta} {periodo.anio}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="histogram-carrera">Carrera</Label>
+                                                        <Select value={histogramConfig.carrera} onValueChange={(value) => setHistogramConfig(prev => ({ ...prev, carrera: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona una carrera" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">Todas las carreras</SelectItem>
+                                                                {carreras.map((carrera) => (
+                                                                    <SelectItem key={carrera.id_carrera} value={carrera.id_carrera.toString()}>
+                                                                        {carrera.nombre}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="histogram-variable">Variable a analizar</Label>
+                                                        <Select value={histogramConfig.variable} onValueChange={(value) => setHistogramConfig(prev => ({ ...prev, variable: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona variable" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="calificaciones">Calificaciones</SelectItem>
+                                                                <SelectItem value="asistencia">Asistencia</SelectItem>
+                                                                <SelectItem value="edad">Edad</SelectItem>
+                                                                <SelectItem value="factores">Factores de Riesgo</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button variant="outline" onClick={() => setHistogramDialogOpen(false)}>
+                                                            Cancelar
+                                                        </Button>
+                                                        <Button
+                                                            disabled={generatingReport}
+                                                            onClick={async () => {
+                                                                setHistogramDialogOpen(false)
+                                                                toast.success('Configuración de histograma aplicada')
+                                                                await generarPDFCompleto()
+                                                            }}
+                                                        >
+                                                            {generatingReport ? 'Generando PDF...' : 'Generar'}
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="histogram-carrera">Carrera</Label>
-                                                    <Select value={histogramConfig.carrera} onValueChange={(value) => setHistogramConfig(prev => ({ ...prev, carrera: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona una carrera" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="all">Todas las carreras</SelectItem>
-                                                            {carreras.map((carrera) => (
-                                                                <SelectItem key={carrera.id_carrera} value={carrera.id_carrera.toString()}>
-                                                                    {carrera.nombre}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="histogram-variable">Variable a analizar</Label>
-                                                    <Select value={histogramConfig.variable} onValueChange={(value) => setHistogramConfig(prev => ({ ...prev, variable: value }))}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona variable" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="calificaciones">Calificaciones</SelectItem>
-                                                            <SelectItem value="asistencia">Asistencia</SelectItem>
-                                                            <SelectItem value="edad">Edad</SelectItem>
-                                                            <SelectItem value="factores">Factores de Riesgo</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="flex justify-end gap-2">
-                                                    <Button variant="outline" onClick={() => setHistogramDialogOpen(false)}>
-                                                        Cancelar
-                                                    </Button>
-                                                    <Button onClick={() => {
-                                                        setHistogramDialogOpen(false)
-                                                        toast.success('Configuración de histograma aplicada')
-                                                    }}>
-                                                        Generar Gráfico
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
+                                            </DialogContent>
+                                        </Dialog>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => generarPDFIndividual('Histograma de Calificaciones')}
+                                            disabled={generatingReport}
+                                        >
+                                            <Download className="h-4 w-4 mr-2" />
+                                            PDF
+                                        </Button>
+                                    </div>
                                 </div>
                                 <CardDescription>
                                     Distribución de calificaciones por rangos
@@ -1316,6 +2183,7 @@ export default function AnaliticaPage() {
                             </CardHeader>
                             <CardContent>
                                 <ChartContainer
+                                    id="histogram-chart"
                                     config={{
                                         rango: {
                                             label: "Rango de Calificación",
@@ -1405,7 +2273,7 @@ export default function AnaliticaPage() {
                                             label: "Cantidad",
                                         },
                                     }}
-                                    className="h-full w-full"
+                                    className="h-[300px] w-full"
                                 >
                                     <RechartsBarChart data={getFactoresPorSeveridad()}>
                                         <CartesianGrid strokeDasharray="3 3" />
@@ -1439,7 +2307,7 @@ export default function AnaliticaPage() {
                                             label: "% Aprobación",
                                         },
                                     }}
-                                    className="h-full w-full"
+                                    className="h-[300px] w-full"
                                 >
                                     <RechartsBarChart data={getRendimientoPorCarrera()}>
                                         <CartesianGrid strokeDasharray="3 3" />
@@ -1473,7 +2341,7 @@ export default function AnaliticaPage() {
                                             label: "Cantidad",
                                         },
                                     }}
-                                    className="h-full w-full"
+                                    className="h-[300px] w-full"
                                 >
                                     <RechartsBarChart data={getTopFactoresRiesgo()} layout="horizontal">
                                         <CartesianGrid strokeDasharray="3 3" />
