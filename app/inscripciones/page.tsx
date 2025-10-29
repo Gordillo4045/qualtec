@@ -902,9 +902,10 @@ export default function InscripcionesPage() {
             .insert({
                 id_estudiante: estudiante.id_estudiante,
                 id_oferta: oferta.id_oferta,
-                cal_final: null, // Se calculará automáticamente
-                asistencia_pct: null, // Se calculará automáticamente
-                aprobado: false,
+                // Dejar que Postgres calcule valores o queden null
+                cal_final: null,
+                asistencia_pct: null,
+                // NO incluir "aprobado" para respetar DEFAULT o columna generada
                 intentos: 1
             })
             .select()
