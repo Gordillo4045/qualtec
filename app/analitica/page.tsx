@@ -106,14 +106,14 @@ const COLORS = {
 }
 
 const CATEGORIA_COLORS = {
-    'Académico': '#3b82f6',
-    'Psicosocial': '#ec4899',
-    'Económico': '#10b981',
-    'Familiar': '#f59e0b',
-    'Salud': '#ef4444',
-    'Institucional': '#8b5cf6',
-    'Tecnológico': '#06b6d4',
-    'Otro': '#6b7280'
+    'Académico': '#1B3C53',
+    'Psicosocial': '#234C6A',
+    'Económico': '#456882',
+    'Familiar': '#D2C1B6',
+    'Salud': '#1B3C53',
+    'Institucional': '#234C6A',
+    'Tecnológico': '#456882',
+    'Otro': '#D2C1B6'
 }
 
 // Utilidades para exportar gráficos (Recharts genera SVG)
@@ -239,7 +239,8 @@ export default function AnaliticaPage() {
     const [controlConfig, setControlConfig] = useState({
         periodo: '',
         carrera: '',
-        variable: 'reprobacion'
+        variable: 'reprobacion',
+        agruparPor: 'periodo' as 'periodo' | 'unidad'
     })
 
     // Estados para generación de reportes
@@ -287,7 +288,8 @@ export default function AnaliticaPage() {
                 fetchCarreras(),
                 fetchEstudianteFactores(),
                 fetchInscripciones(),
-                fetchEstudiantes()
+                fetchEstudiantes(),
+                fetchEstudianteUnidades()
             ])
             setLoading(false)
         } catch (error) {
@@ -368,6 +370,28 @@ export default function AnaliticaPage() {
             setInscripciones(data || [])
         } catch (error) {
             console.error('Error al cargar inscripciones:', error)
+        }
+    }
+
+    // Unidades por inscripción para permitir agrupar por unidad en el gráfico de control
+    const [estudianteUnidades, setEstudianteUnidades] = useState<any[]>([])
+    const fetchEstudianteUnidades = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('estudiante_unidad')
+                .select(`
+                    *,
+                    inscripcion:inscripcion(
+                        id_inscripcion,
+                        estudiante:estudiante(*),
+                        oferta:oferta(periodo:periodo(*))
+                    ),
+                    materia_unidad:materia_unidad(numero_unidad)
+                `)
+            if (error) throw error
+            setEstudianteUnidades(data || [])
+        } catch (error) {
+            console.error('Error al cargar estudiante_unidad:', error)
         }
     }
 
@@ -796,8 +820,73 @@ export default function AnaliticaPage() {
         if (controlConfig.carrera && controlConfig.carrera !== 'all') {
             dataToAnalyze = dataToAnalyze.filter(ins => ins.estudiante?.id_carrera.toString() === controlConfig.carrera)
         }
+        if (controlConfig.agruparPor === 'unidad') {
+            // Agrupar por numero de unidad usando estudiante_unidad
+            let unidadesFiltradas = estudianteUnidades
+            // Filtrar por periodo si el usuario eligió uno en el diálogo
+            if (controlConfig.periodo && controlConfig.periodo !== 'all') {
+                const periodoId = parseInt(controlConfig.periodo)
+                unidadesFiltradas = unidadesFiltradas.filter((eu: any) => eu.inscripcion?.oferta?.periodo?.id_periodo === periodoId)
+            }
+            // Filtrar por carrera si aplica
+            if (controlConfig.carrera && controlConfig.carrera !== 'all') {
+                const carreraId = parseInt(controlConfig.carrera)
+                unidadesFiltradas = unidadesFiltradas.filter((eu: any) => eu.inscripcion?.estudiante?.id_carrera === carreraId)
+            }
 
-        const periodosData = periodos.slice(0, 6) // Últimos 6 períodos
+            const numeroToRegistros: Record<number, any[]> = {}
+            unidadesFiltradas.forEach((eu: any) => {
+                const num = eu.materia_unidad?.numero_unidad
+                if (!num) return
+                if (!numeroToRegistros[num]) numeroToRegistros[num] = []
+                numeroToRegistros[num].push(eu)
+            })
+
+            const unidadesOrdenadas = Object.keys(numeroToRegistros).map(n => parseInt(n)).sort((a, b) => a - b)
+            return unidadesOrdenadas.map((num) => {
+                const registros = numeroToRegistros[num]
+                const total = registros.length
+                let value = 0
+                let label = ''
+
+                switch (controlConfig.variable) {
+                    case 'asistencia': {
+                        const asistidos = registros.filter(r => r.asistio === true).length
+                        value = total > 0 ? (asistidos / total) * 100 : 0
+                        label = 'Asistencia por Unidad (%)'
+                        break
+                    }
+                    case 'calificacion': {
+                        const suma = registros.reduce((s, r) => s + (r.calificacion || 0), 0)
+                        value = total > 0 ? (suma / total) : 0
+                        label = 'Calificación Promedio por Unidad'
+                        break
+                    }
+                    case 'reprobacion': {
+                        const reprobadas = registros.filter(r => (r.calificacion ?? 0) < 70).length
+                        value = total > 0 ? (reprobadas / total) * 100 : 0
+                        label = 'Reprobación por Unidad (%)'
+                        break
+                    }
+                    default: {
+                        value = 0
+                        label = 'Valor no disponible para esta variable por unidad'
+                    }
+                }
+
+                return {
+                    unidad: `Unidad ${num}`,
+                    [controlConfig.variable]: Number(value.toFixed(1)),
+                    total,
+                    label
+                }
+            })
+        }
+
+        // Agrupar por período (comportamiento previo)
+        const periodosData = controlConfig.periodo && controlConfig.periodo !== 'all'
+            ? periodos.filter(p => p.id_periodo.toString() === controlConfig.periodo)
+            : periodos.slice(0, 6)
 
         return periodosData.map((periodo: any) => {
             const inscripcionesPeriodo = dataToAnalyze.filter(ins =>
@@ -814,25 +903,21 @@ export default function AnaliticaPage() {
                     value = total > 0 ? ((reprobados / total) * 100) : 0
                     label = 'Tasa de Reprobación (%)'
                     break
-
                 case 'desercion':
                     const desertores = inscripcionesPeriodo.filter(ins => ins.estudiante?.estatus === 'desertor').length
                     value = total > 0 ? ((desertores / total) * 100) : 0
                     label = 'Tasa de Deserción (%)'
                     break
-
                 case 'asistencia':
                     const asistenciaPromedio = inscripcionesPeriodo.reduce((sum, ins) => sum + (ins.asistencia_pct || 0), 0)
                     value = total > 0 ? (asistenciaPromedio / total) : 0
                     label = 'Promedio de Asistencia (%)'
                     break
-
                 case 'calificacion':
                     const calificacionPromedio = inscripcionesPeriodo.reduce((sum, ins) => sum + (ins.cal_final || 0), 0)
                     value = total > 0 ? (calificacionPromedio / total) : 0
                     label = 'Promedio de Calificaciones'
                     break
-
                 default:
                     const reprobadosDefault = inscripcionesPeriodo.filter(ins => !ins.aprobado).length
                     value = total > 0 ? ((reprobadosDefault / total) * 100) : 0
@@ -1899,6 +1984,18 @@ export default function AnaliticaPage() {
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="control-granularidad">Agrupar por</Label>
+                                                        <Select value={controlConfig.agruparPor} onValueChange={(value: 'periodo' | 'unidad') => setControlConfig(prev => ({ ...prev, agruparPor: value }))}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona agrupación" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="periodo">Período</SelectItem>
+                                                                <SelectItem value="unidad">Unidad</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
                                                     <div className="flex justify-end gap-2">
                                                         <Button variant="outline" onClick={() => setControlDialogOpen(false)}>
                                                             Cancelar
@@ -1932,9 +2029,8 @@ export default function AnaliticaPage() {
                                 <ChartContainer
                                     id="control-chart"
                                     config={{
-                                        periodo: {
-                                            label: "Período",
-                                        },
+                                        periodo: { label: "Período" },
+                                        unidad: { label: "Unidad" },
                                         [controlConfig.variable]: {
                                             label: controlConfig.variable === 'reprobacion' ? '% Reprobación' :
                                                 controlConfig.variable === 'desercion' ? '% Deserción' :
@@ -1946,7 +2042,7 @@ export default function AnaliticaPage() {
                                 >
                                     <LineChart data={getControlReprobacion()}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="periodo" />
+                                        <XAxis dataKey={controlConfig.agruparPor === 'unidad' ? 'unidad' : 'periodo'} />
                                         <YAxis />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <ReferenceLine y={50} stroke={COLORS.danger} strokeDasharray="5 5" label="Límite Crítico (50%)" />
@@ -2348,12 +2444,12 @@ export default function AnaliticaPage() {
                                     }}
                                     className="h-[300px] w-full"
                                 >
-                                    <RechartsBarChart data={getTopFactoresRiesgo()} layout="horizontal">
+                                    <RechartsBarChart data={getTopFactoresRiesgo()} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis type="number" />
                                         <YAxis dataKey="factor" type="category" width={120} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
-                                        <Bar dataKey="cantidad" fill={COLORS.danger} />
+                                        <Bar dataKey="cantidad" fill={COLORS.danger} fillOpacity={1} />
                                     </RechartsBarChart>
                                 </ChartContainer>
                             </CardContent>
