@@ -276,12 +276,7 @@ export default function ModalidadesPage() {
                                     />
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Filtros
-                                </Button>
-                            </div>
+                            <div className="flex gap-2" />
                         </div>
                     </CardContent>
                 </Card>

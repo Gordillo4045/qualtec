@@ -294,21 +294,7 @@ export default function DepartamentosPage() {
                                     />
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Filtros
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Estatus
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Ubicación
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Carreras
-                                </Button>
-                            </div>
+                            <div className="flex gap-2" />
                         </div>
                     </CardContent>
                 </Card>

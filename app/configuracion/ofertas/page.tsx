@@ -474,10 +474,6 @@ export default function OfertasPage() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Filtros
-                                </Button>
                                 <select
                                     value={selectedMateria}
                                     onChange={(e) => setSelectedMateria(e.target.value)}
@@ -502,9 +498,6 @@ export default function OfertasPage() {
                                         </option>
                                     ))}
                                 </select>
-                                <Button variant="outline" size="sm">
-                                    Estatus
-                                </Button>
                             </div>
                         </div>
                     </CardContent>

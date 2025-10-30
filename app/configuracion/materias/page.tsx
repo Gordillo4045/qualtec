@@ -428,10 +428,6 @@ export default function MateriasPage() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Filtros
-                                </Button>
                                 <select
                                     value={selectedDepartamento}
                                     onChange={(e) => setSelectedDepartamento(e.target.value)}
@@ -444,12 +440,6 @@ export default function MateriasPage() {
                                         </option>
                                     ))}
                                 </select>
-                                <Button variant="outline" size="sm">
-                                    Carrera
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Semestre
-                                </Button>
                             </div>
                         </div>
                     </CardContent>

@@ -507,10 +507,6 @@ export default function PeriodosPage() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Filtros
-                                </Button>
                                 <select
                                     value={selectedAnio}
                                     onChange={(e) => setSelectedAnio(e.target.value)}
@@ -521,12 +517,6 @@ export default function PeriodosPage() {
                                         <option key={anio} value={anio}>{anio}</option>
                                     ))}
                                 </select>
-                                <Button variant="outline" size="sm">
-                                    Estatus
-                                </Button>
-                                <Button variant="outline" size="sm">
-                                    Rango de Fechas
-                                </Button>
                             </div>
                         </div>
                     </CardContent>

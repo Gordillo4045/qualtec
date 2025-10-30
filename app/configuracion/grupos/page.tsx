@@ -369,10 +369,6 @@ export default function GruposPage() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Filtros
-                                </Button>
                                 <select
                                     value={selectedCarrera}
                                     onChange={(e) => setSelectedCarrera(e.target.value)}
@@ -396,9 +392,7 @@ export default function GruposPage() {
                                     <option value="Nocturno">Nocturno</option>
                                     <option value="Mixto">Mixto</option>
                                 </select>
-                                <Button variant="outline" size="sm">
-                                    Semestre
-                                </Button>
+                                
                             </div>
                         </div>
                     </CardContent>
