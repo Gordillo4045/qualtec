@@ -568,21 +568,9 @@ export default function OfertasPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Ver detalles
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleEdit(oferta)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <User className="mr-2 h-4 w-4" />
-                                                            Ver inscritos
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <Calendar className="mr-2 h-4 w-4" />
-                                                            Ver horario
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="text-red-600"

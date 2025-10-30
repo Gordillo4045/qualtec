@@ -363,25 +363,9 @@ export default function DepartamentosPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Ver detalles
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleEdit(departamento)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <GraduationCap className="mr-2 h-4 w-4" />
-                                                            Ver carreras
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <BookMarked className="mr-2 h-4 w-4" />
-                                                            Ver materias
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <Users className="mr-2 h-4 w-4" />
-                                                            Ver docentes
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="text-red-600"

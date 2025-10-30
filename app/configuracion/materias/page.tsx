@@ -509,17 +509,9 @@ export default function MateriasPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Ver detalles
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleEdit(materia)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <BookOpen className="mr-2 h-4 w-4" />
-                                                            Ver contenido
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="text-red-600"

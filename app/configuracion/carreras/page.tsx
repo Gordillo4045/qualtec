@@ -156,7 +156,8 @@ export default function CarrerasPage() {
                 .from('carrera')
                 .select(`
                     *,
-                    departamento:departamento(nombre)
+                    departamento:departamento(nombre),
+                    estudiantes:estudiante(count)
                 `)
 
             if (error) throw error
@@ -397,9 +398,6 @@ export default function CarrerasPage() {
                                         <TableHead>Nombre</TableHead>
                                         <TableHead>Clave</TableHead>
                                         <TableHead>Departamento</TableHead>
-                                        <TableHead>Modalidad</TableHead>
-                                        <TableHead>Duración</TableHead>
-                                        <TableHead>Créditos</TableHead>
                                         <TableHead>Estudiantes</TableHead>
                                         <TableHead>Estatus</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
@@ -425,13 +423,10 @@ export default function CarrerasPage() {
                                                     {carrera.departamento?.nombre || 'Sin departamento'}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>-</TableCell>
-                                            <TableCell>-</TableCell>
-                                            <TableCell>-</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <Users className="h-4 w-4 text-muted-foreground mr-1" />
-                                                    -
+                                                    {carrera.estudiantes?.[0]?.count || 0}
                                                 </div>
                                             </TableCell>
                                             <TableCell><Badge variant="outline">Activa</Badge></TableCell>
@@ -443,17 +438,9 @@ export default function CarrerasPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Ver detalles
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleEdit(carrera)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <BookOpen className="mr-2 h-4 w-4" />
-                                                            Ver materias
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="text-red-600"
@@ -481,7 +468,7 @@ export default function CarrerasPage() {
                             <GraduationCap className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{carreras.length}</div>
+                            <div className="text-2xl font-bold">{carreras.reduce((acc, c) => acc + (c.estudiantes?.[0]?.count || 0), 0)}</div>
                         </CardContent>
                     </Card>
                     <Card>

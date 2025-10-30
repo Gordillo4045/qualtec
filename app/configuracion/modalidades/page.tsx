@@ -329,17 +329,9 @@ export default function ModalidadesPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Ver detalles
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleEdit(modalidad)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <Users className="mr-2 h-4 w-4" />
-                                                            Ver estudiantes
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="text-red-600"
