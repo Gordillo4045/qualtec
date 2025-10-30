@@ -3,6 +3,7 @@ import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import {
@@ -474,30 +475,30 @@ export default function OfertasPage() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <select
+                                <NativeSelect
                                     value={selectedMateria}
                                     onChange={(e) => setSelectedMateria(e.target.value)}
                                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <option value="">Todas las materias</option>
+                                    <NativeSelectOption value="">Todas las materias</NativeSelectOption>
                                     {materias.map((materia) => (
-                                        <option key={materia.id_materia} value={materia.id_materia}>
+                                        <NativeSelectOption key={materia.id_materia} value={String(materia.id_materia)}>
                                             {materia.nombre}
-                                        </option>
+                                        </NativeSelectOption>
                                     ))}
-                                </select>
-                                <select
+                                </NativeSelect>
+                                <NativeSelect
                                     value={selectedPeriodo}
                                     onChange={(e) => setSelectedPeriodo(e.target.value)}
                                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <option value="">Todos los periodos</option>
+                                    <NativeSelectOption value="">Todos los periodos</NativeSelectOption>
                                     {periodos.map((periodo) => (
-                                        <option key={periodo.id_periodo} value={periodo.id_periodo}>
+                                        <NativeSelectOption key={periodo.id_periodo} value={String(periodo.id_periodo)}>
                                             {periodo.etiqueta}
-                                        </option>
+                                        </NativeSelectOption>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                         </div>
                     </CardContent>

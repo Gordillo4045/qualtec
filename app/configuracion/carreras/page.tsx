@@ -3,6 +3,7 @@ import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import {
@@ -355,18 +356,18 @@ export default function CarrerasPage() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <select
+                                <NativeSelect
                                     value={selectedDepartamento}
                                     onChange={(e) => setSelectedDepartamento(e.target.value)}
                                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <option value="">Todos los departamentos</option>
+                                    <NativeSelectOption value="">Todos los departamentos</NativeSelectOption>
                                     {departamentos.map((dept) => (
-                                        <option key={dept.id_departamento} value={dept.id_departamento}>
+                                        <NativeSelectOption key={dept.id_departamento} value={String(dept.id_departamento)}>
                                             {dept.nombre}
-                                        </option>
+                                        </NativeSelectOption>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                         </div>
                     </CardContent>

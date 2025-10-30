@@ -240,7 +240,7 @@ export default function AnaliticaPage() {
         periodo: '',
         carrera: '',
         variable: 'reprobacion',
-        agruparPor: 'periodo' as 'periodo' | 'unidad'
+        agruparPor: 'periodo' as 'periodo' | 'unidad' | 'materia'
     })
 
     // Estados para generación de reportes
@@ -499,12 +499,153 @@ export default function AnaliticaPage() {
 
     const getTendenciaTemporal = () => {
         const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-        return meses.map((mes, index) => ({
+
+        // Preparar acumuladores por mes
+        const factoresPorMes = Array(12).fill(0)
+        const inscripcionesPorMes = Array(12).fill(0)
+        const aprobadosPorMes = Array(12).fill(0)
+
+        // Filtros activos
+        const periodoSeleccionado = selectedPeriod !== 'all' ? parseInt(selectedPeriod) : null
+        const carreraSeleccionada = selectedCarrera !== 'all' ? selectedCarrera : null
+
+        // Factores por mes usando fecha_registro real
+        estudianteFactores.forEach((ef: any) => {
+            if (periodoSeleccionado && ef.id_periodo !== periodoSeleccionado) return
+            if (carreraSeleccionada && ef.estudiante?.id_carrera?.toString() !== carreraSeleccionada) return
+            const m = ef.fecha_registro ? new Date(ef.fecha_registro).getMonth() : null
+            if (m !== null && m >= 0 && m < 12) {
+                factoresPorMes[m] += 1
+            }
+        })
+
+        // Inscripciones y aprobados por mes usando periodo.inicio real
+        inscripciones.forEach((ins: any) => {
+            if (periodoSeleccionado && ins.oferta?.id_periodo !== periodoSeleccionado) return
+            if (carreraSeleccionada && ins.estudiante?.id_carrera?.toString() !== carreraSeleccionada) return
+            const inicio = ins.oferta?.periodo?.inicio
+            const m = inicio ? new Date(inicio).getMonth() : null
+            if (m !== null && m >= 0 && m < 12) {
+                inscripcionesPorMes[m] += 1
+                if (ins.aprobado) aprobadosPorMes[m] += 1
+            }
+        })
+
+        const data = meses.map((mes, index) => ({
             mes,
-            factores: Math.floor(Math.random() * 20) + 5, // Datos simulados
-            inscripciones: Math.floor(Math.random() * 50) + 20,
-            aprobados: Math.floor(Math.random() * 30) + 15
+            factores: factoresPorMes[index],
+            inscripciones: inscripcionesPorMes[index],
+            aprobados: aprobadosPorMes[index]
         }))
+
+        // Si no hay datos reales, devolver arreglo vacío para evitar mostrar gráfico vacío
+        const total = data.reduce((acc, d) => acc + d.factores + d.inscripciones + d.aprobados, 0)
+        return total > 0 ? data : []
+    }
+
+    // Recomendaciones de mejora basadas en las métricas actuales
+    const getRecomendacionesMejora = () => {
+        const recomendaciones: { Recomendacion: string, Justificacion: string, Metrica: string }[] = []
+
+        const totalIns = filteredInscripciones.length
+        const aprobados = filteredInscripciones.filter(ins => ins.aprobado).length
+        const reprobados = totalIns - aprobados
+        const tasaReprobacion = totalIns > 0 ? (reprobados / totalIns) * 100 : 0
+
+        const asistenciaProm = totalIns > 0
+            ? filteredInscripciones.reduce((s, ins) => s + (ins.asistencia_pct || 0), 0) / totalIns
+            : 0
+
+        const califProm = totalIns > 0
+            ? filteredInscripciones.reduce((s, ins) => s + (ins.cal_final || 0), 0) / totalIns
+            : 0
+
+        // Top factores por frecuencia y severidad
+        const porFactor = filteredFactores.reduce((acc: any, ef) => {
+            const nombre = ef.factor?.nombre || 'Sin factor'
+            if (!acc[nombre]) acc[nombre] = { count: 0, severidad: 0 }
+            acc[nombre].count += 1
+            acc[nombre].severidad += ef.severidad || 0
+            return acc
+        }, {})
+        const factoresOrden = Object.entries(porFactor).map(([nombre, v]: any) => ({
+            nombre,
+            count: v.count,
+            severidadPromedio: v.count > 0 ? v.severidad / v.count : 0
+        })).sort((a, b) => b.count - a.count)
+
+        // Regla: alta reprobación
+        if (tasaReprobacion >= 30) {
+            recomendaciones.push({
+                Recomendacion: 'Implementar programa de tutorías focalizadas y reforzar evaluación formativa',
+                Justificacion: 'La tasa de reprobación supera el 30% en el periodo/carrera analizados',
+                Metrica: `% Reprobación: ${tasaReprobacion.toFixed(1)}%`
+            })
+        }
+
+        // Regla: baja asistencia
+        if (asistenciaProm <= 80) {
+            recomendaciones.push({
+                Recomendacion: 'Fortalecer estrategias de asistencia (recordatorios, flexibilización, participación)',
+                Justificacion: 'El promedio de asistencia está por debajo del 80%',
+                Metrica: `Asistencia Promedio: ${asistenciaProm.toFixed(1)}%`
+            })
+        }
+
+        // Regla: calificación promedio baja
+        if (califProm < 75) {
+            recomendaciones.push({
+                Recomendacion: 'Ajustar planes de curso y reforzar contenidos clave con ejercicios guiados',
+                Justificacion: 'El promedio de calificaciones es inferior a 75',
+                Metrica: `Calificación Promedio: ${califProm.toFixed(1)}`
+            })
+        }
+
+        // Regla: factores de riesgo frecuentes
+        if (factoresOrden.length > 0 && factoresOrden[0].count >= 5) {
+            const f = factoresOrden[0]
+            recomendaciones.push({
+                Recomendacion: `Mitigar el factor de mayor incidencia: ${f.nombre} (intervención específica)`,
+                Justificacion: `Es el factor más frecuente y con severidad promedio ${f.severidadPromedio.toFixed(1)}`,
+                Metrica: `Top Factor: ${f.nombre} (${f.count} casos)`
+            })
+        }
+
+        // Regla: dispersión amplia entre materias (si agrupar por materia muestra variaciones)
+        try {
+            const porMateria = inscripciones.reduce((acc: any, ins: any) => {
+                const mat = ins.oferta?.materia?.nombre || 'Sin materia'
+                if (!acc[mat]) acc[mat] = []
+                acc[mat].push(ins)
+                return acc
+            }, {})
+            const promedios = (Object.values(porMateria) as any[]).map((arr: any[]) => {
+                const t = arr.length
+                const m = t > 0 ? arr.reduce((s, x) => s + (x.cal_final || 0), 0) / t : 0
+                return m
+            }) as number[]
+            if (promedios.length >= 2) {
+                const max = Math.max(...promedios)
+                const min = Math.min(...promedios)
+                if (max - min >= 15) {
+                    recomendaciones.push({
+                        Recomendacion: 'Homologar criterios de evaluación entre materias y compartir buenas prácticas',
+                        Justificacion: 'Existe una brecha >= 15 pts entre promedios por materia',
+                        Metrica: `Brecha de Promedios por Materia: ${(max - min).toFixed(1)}`
+                    })
+                }
+            }
+        } catch (_) { /* noop */ }
+
+        if (recomendaciones.length === 0) {
+            recomendaciones.push({
+                Recomendacion: 'Mantener estrategias actuales y monitorear indicadores clave',
+                Justificacion: 'No se detectaron alertas relevantes en los indicadores actuales',
+                Metrica: 'N/A'
+            })
+        }
+
+        return recomendaciones
     }
 
     // Análisis de Pareto - Factores que más afectan por grupo
@@ -883,6 +1024,69 @@ export default function AnaliticaPage() {
             })
         }
 
+        if (controlConfig.agruparPor === 'materia') {
+            // Agrupar por materia de la oferta
+            let insFiltradas = dataToAnalyze
+            if (controlConfig.periodo && controlConfig.periodo !== 'all') {
+                const periodoId = parseInt(controlConfig.periodo)
+                insFiltradas = insFiltradas.filter((ins: any) => ins.oferta?.id_periodo === periodoId)
+            }
+
+            const materiaToIns: Record<string, any[]> = {}
+            insFiltradas.forEach((ins: any) => {
+                const mat = ins.oferta?.materia?.nombre || 'Sin materia'
+                if (!materiaToIns[mat]) materiaToIns[mat] = []
+                materiaToIns[mat].push(ins)
+            })
+
+            const materiasOrdenadas = Object.keys(materiaToIns).sort((a, b) => a.localeCompare(b))
+            return materiasOrdenadas.map((materia) => {
+                const registros = materiaToIns[materia]
+                const total = registros.length
+                let value = 0
+                let label = ''
+
+                switch (controlConfig.variable) {
+                    case 'reprobacion': {
+                        const reprobados = registros.filter((ins: any) => !ins.aprobado).length
+                        value = total > 0 ? (reprobados / total) * 100 : 0
+                        label = 'Tasa de Reprobación por Materia (%)'
+                        break
+                    }
+                    case 'desercion': {
+                        const desertores = registros.filter((ins: any) => ins.estudiante?.estatus === 'desertor').length
+                        value = total > 0 ? (desertores / total) * 100 : 0
+                        label = 'Tasa de Deserción por Materia (%)'
+                        break
+                    }
+                    case 'asistencia': {
+                        const suma = registros.reduce((s: number, ins: any) => s + (ins.asistencia_pct || 0), 0)
+                        value = total > 0 ? (suma / total) : 0
+                        label = 'Promedio de Asistencia por Materia (%)'
+                        break
+                    }
+                    case 'calificacion': {
+                        const suma = registros.reduce((s: number, ins: any) => s + (ins.cal_final || 0), 0)
+                        value = total > 0 ? (suma / total) : 0
+                        label = 'Promedio de Calificaciones por Materia'
+                        break
+                    }
+                    default: {
+                        const reprobados = registros.filter((ins: any) => !ins.aprobado).length
+                        value = total > 0 ? (reprobados / total) * 100 : 0
+                        label = 'Tasa de Reprobación por Materia (%)'
+                    }
+                }
+
+                return {
+                    materia,
+                    [controlConfig.variable]: Number(value.toFixed(1)),
+                    total,
+                    label
+                }
+            })
+        }
+
         // Agrupar por período (comportamiento previo)
         const periodosData = controlConfig.periodo && controlConfig.periodo !== 'all'
             ? periodos.filter(p => p.id_periodo.toString() === controlConfig.periodo)
@@ -1044,6 +1248,11 @@ export default function AnaliticaPage() {
 
             const wsInscripcionesDetalladas = XLSX.utils.json_to_sheet(inscripcionesDetalladas)
             XLSX.utils.book_append_sheet(wb, wsInscripcionesDetalladas, 'Inscripciones Detalladas')
+
+            // 13. Recomendaciones de Mejora
+            const recomendaciones = getRecomendacionesMejora()
+            const wsRecomendaciones = XLSX.utils.json_to_sheet(recomendaciones)
+            XLSX.utils.book_append_sheet(wb, wsRecomendaciones, 'Recomendaciones')
 
             // Generar nombre de archivo
             const periodo = selectedPeriod !== 'all' ? periodos.find(p => p.id_periodo.toString() === selectedPeriod) : null
@@ -1435,6 +1644,19 @@ export default function AnaliticaPage() {
                 yPosition = drawTable(pdf, headers, rows, yPosition)
             }
 
+            yPosition = drawDivider(pdf, yPosition)
+
+            // Recomendaciones de mejora
+            pdf.setFontSize(12)
+            pdf.text('Recomendaciones de Mejora', 20, yPosition)
+            yPosition += 6
+            {
+                const recomendaciones = getRecomendacionesMejora().slice(0, 12)
+                const headers = ['Recomendación', 'Justificación', 'Métrica']
+                const rows = recomendaciones.map(r => [r.Recomendacion, r.Justificacion, r.Metrica])
+                yPosition = drawTable(pdf, headers, rows, yPosition)
+            }
+
             // Pie de página
             drawFooter(pdf)
 
@@ -1594,6 +1816,20 @@ export default function AnaliticaPage() {
                 }
             } else {
                 pdf.text(`No se encontró el gráfico ${chartType}`, 20, yPosition)
+            }
+
+            // Sección: Recomendaciones de Mejora
+            pdf.addPage()
+            drawHeaderBar(pdf, `Recomendaciones - ${chartType}`)
+            yPosition = 26
+            pdf.setFontSize(12)
+            pdf.text('Recomendaciones de Mejora', 20, yPosition)
+            yPosition += 6
+            {
+                const recomendaciones = getRecomendacionesMejora().slice(0, 12)
+                const headers = ['Recomendación', 'Justificación', 'Métrica']
+                const rows = recomendaciones.map(r => [r.Recomendacion, r.Justificacion, r.Metrica])
+                yPosition = drawTable(pdf, headers, rows, yPosition)
             }
 
             // Pie de página y nombre de archivo
@@ -1986,13 +2222,14 @@ export default function AnaliticaPage() {
                                                     </div>
                                                     <div className="space-y-2">
                                                         <Label htmlFor="control-granularidad">Agrupar por</Label>
-                                                        <Select value={controlConfig.agruparPor} onValueChange={(value: 'periodo' | 'unidad') => setControlConfig(prev => ({ ...prev, agruparPor: value }))}>
+                                                        <Select value={controlConfig.agruparPor} onValueChange={(value: 'periodo' | 'unidad' | 'materia') => setControlConfig(prev => ({ ...prev, agruparPor: value }))}>
                                                             <SelectTrigger>
                                                                 <SelectValue placeholder="Selecciona agrupación" />
                                                             </SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="periodo">Período</SelectItem>
                                                                 <SelectItem value="unidad">Unidad</SelectItem>
+                                                                <SelectItem value="materia">Materia</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
@@ -2042,7 +2279,7 @@ export default function AnaliticaPage() {
                                 >
                                     <LineChart data={getControlReprobacion()}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey={controlConfig.agruparPor === 'unidad' ? 'unidad' : 'periodo'} label={{ value: controlConfig.agruparPor === 'unidad' ? 'Unidad' : 'Período', position: 'insideBottom', offset: -2 }} />
+                                        <XAxis dataKey={controlConfig.agruparPor === 'unidad' ? 'unidad' : (controlConfig.agruparPor === 'materia' ? 'materia' : 'periodo')} label={{ value: controlConfig.agruparPor === 'unidad' ? 'Unidad' : (controlConfig.agruparPor === 'materia' ? 'Materia' : 'Período'), position: 'insideBottom', offset: -2 }} />
                                         <YAxis label={{ value: (controlConfig.variable === 'reprobacion' ? '% Reprobación' : controlConfig.variable === 'desercion' ? '% Deserción' : controlConfig.variable === 'asistencia' ? '% Asistencia' : 'Calificación Promedio'), angle: -90, position: 'insideLeft' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <ReferenceLine y={50} stroke={COLORS.danger} strokeDasharray="5 5" label="Límite Crítico (50%)" />
@@ -2494,15 +2731,13 @@ export default function AnaliticaPage() {
                                     <YAxis label={{ value: 'Valor', angle: -90, position: 'insideLeft' }} />
                                     <ChartTooltip content={<ChartTooltipContent />} />
                                     <Legend />
-                                    <Line type="monotone" dataKey="factores" stroke={COLORS.danger} strokeWidth={2} />
-                                    <Line type="monotone" dataKey="inscripciones" stroke={COLORS.primary} strokeWidth={2} />
-                                    <Line type="monotone" dataKey="aprobados" stroke={COLORS.success} strokeWidth={2} />
+                                    <Line type="monotone" dataKey="factores" stroke={"#d1b441"} strokeWidth={2} />
+                                    <Line type="monotone" dataKey="inscripciones" stroke={"#00001f"} strokeWidth={2} />
+                                    <Line type="monotone" dataKey="aprobados" stroke={"#43ab33"} strokeWidth={2} />
                                 </LineChart>
                             </ChartContainer>
                         </CardContent>
                     </Card>
-
-
 
                     {/* Diagrama de Ishikawa - Ancho completo
                     <Card>

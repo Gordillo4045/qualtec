@@ -3,6 +3,7 @@ import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Field } from "@/components/ui/field"
@@ -1193,34 +1194,30 @@ export default function InscripcionesPage() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm">
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    Filtros
-                                </Button>
-                                <select
+                                <NativeSelect
                                     value={selectedEstudiante}
                                     onChange={(e) => setSelectedEstudiante(e.target.value)}
                                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <option value="">Todos los estudiantes</option>
+                                    <NativeSelectOption value="">Todos los estudiantes</NativeSelectOption>
                                     {estudiantes.map((estudiante) => (
-                                        <option key={estudiante.id_estudiante} value={estudiante.id_estudiante}>
+                                        <NativeSelectOption key={estudiante.id_estudiante} value={estudiante.id_estudiante}>
                                             {estudiante.numero_control} - {estudiante.nombres} {estudiante.ap_paterno}
-                                        </option>
+                                        </NativeSelectOption>
                                     ))}
-                                </select>
-                                <select
+                                </NativeSelect>
+                                <NativeSelect
                                     value={selectedOferta}
                                     onChange={(e) => setSelectedOferta(e.target.value)}
                                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <option value="">Todas las ofertas</option>
+                                    <NativeSelectOption value="">Todas las ofertas</NativeSelectOption>
                                     {ofertas.map((oferta) => (
-                                        <option key={oferta.id_oferta} value={oferta.id_oferta.toString()}>
+                                        <NativeSelectOption key={oferta.id_oferta} value={oferta.id_oferta.toString()}>
                                             {oferta.materia?.nombre} - {oferta.periodo?.etiqueta}
-                                        </option>
+                                        </NativeSelectOption>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                         </div>
                     </CardContent>

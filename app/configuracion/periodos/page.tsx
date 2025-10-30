@@ -3,6 +3,7 @@ import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import {
@@ -507,16 +508,16 @@ export default function PeriodosPage() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <select
+                                <NativeSelect
                                     value={selectedAnio}
                                     onChange={(e) => setSelectedAnio(e.target.value)}
                                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <option value="">Todos los años</option>
+                                    <NativeSelectOption value="">Todos los años</NativeSelectOption>
                                     {Array.from(new Set(periodos.map(p => p.anio))).sort((a, b) => b - a).map(anio => (
-                                        <option key={anio} value={anio}>{anio}</option>
+                                        <NativeSelectOption key={anio} value={String(anio)}>{anio}</NativeSelectOption>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                         </div>
                     </CardContent>
