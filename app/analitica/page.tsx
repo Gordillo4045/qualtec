@@ -1905,8 +1905,8 @@ export default function AnaliticaPage() {
                                 >
                                     <RechartsBarChart data={getAnalisisPareto()}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="grupo" angle={-45} textAnchor="end" height={100} />
-                                        <YAxis />
+                                        <XAxis dataKey="grupo" angle={-45} textAnchor="end" height={100} label={{ value: 'Grupo', position: 'insideBottom', offset: 0 }} />
+                                        <YAxis label={{ value: 'Reprobados', angle: -90, position: 'insideLeft' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <Bar dataKey="reprobados" fill={COLORS.danger} />
                                     </RechartsBarChart>
@@ -2042,8 +2042,8 @@ export default function AnaliticaPage() {
                                 >
                                     <LineChart data={getControlReprobacion()}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey={controlConfig.agruparPor === 'unidad' ? 'unidad' : 'periodo'} />
-                                        <YAxis />
+                                        <XAxis dataKey={controlConfig.agruparPor === 'unidad' ? 'unidad' : 'periodo'} label={{ value: controlConfig.agruparPor === 'unidad' ? 'Unidad' : 'Período', position: 'insideBottom', offset: -2 }} />
+                                        <YAxis label={{ value: (controlConfig.variable === 'reprobacion' ? '% Reprobación' : controlConfig.variable === 'desercion' ? '% Deserción' : controlConfig.variable === 'asistencia' ? '% Asistencia' : 'Calificación Promedio'), angle: -90, position: 'insideLeft' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <ReferenceLine y={50} stroke={COLORS.danger} strokeDasharray="5 5" label="Límite Crítico (50%)" />
                                         <Line type="monotone" dataKey={controlConfig.variable} stroke={COLORS.warning} strokeWidth={3} />
@@ -2176,8 +2176,8 @@ export default function AnaliticaPage() {
                                 >
                                     <ScatterChart data={getDispersionEstudio()}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey={scatterConfig.variableX} name={scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' : 'Variable X'} />
-                                        <YAxis dataKey={scatterConfig.variableY} name={scatterConfig.variableY === 'promedio' ? 'Promedio Notas' : 'Variable Y'} />
+                                        <XAxis dataKey={scatterConfig.variableX} name={scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' : 'Variable X'} label={{ value: (scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' : scatterConfig.variableX === 'horas_estudio' ? 'Horas de Estudio' : scatterConfig.variableX === 'factores_riesgo' ? 'Factores de Riesgo' : scatterConfig.variableX === 'edad' ? 'Edad' : scatterConfig.variableX === 'semestre' ? 'Año' : 'Eje X'), position: 'insideBottom', offset: -2 }} />
+                                        <YAxis dataKey={scatterConfig.variableY} name={scatterConfig.variableY === 'promedio' ? 'Promedio Notas' : 'Variable Y'} label={{ value: (scatterConfig.variableY === 'promedio' ? 'Promedio Notas' : scatterConfig.variableY === 'calificacion' ? 'Calificación Final' : scatterConfig.variableY === 'asistencia' ? 'Asistencia (%)' : scatterConfig.variableY === 'reprobacion' ? 'Reprobación' : scatterConfig.variableY === 'desercion' ? 'Deserción' : 'Eje Y'), angle: -90, position: 'insideLeft' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <Scatter dataKey={scatterConfig.variableY} fill={COLORS.success} />
                                     </ScatterChart>
@@ -2297,8 +2297,8 @@ export default function AnaliticaPage() {
                                 >
                                     <RechartsBarChart data={getHistogramaCalificaciones()}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="rango" />
-                                        <YAxis />
+                                        <XAxis dataKey="rango" label={{ value: 'Rango de Calificación', position: 'insideBottom', offset: 0 }} />
+                                        <YAxis label={{ value: 'Frecuencia', angle: -90, position: 'insideLeft' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <Bar dataKey="frecuencia" fill={COLORS.primary} />
                                     </RechartsBarChart>
@@ -2378,8 +2378,8 @@ export default function AnaliticaPage() {
                                 >
                                     <RechartsBarChart data={getFactoresPorSeveridad()}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="severidad" />
-                                        <YAxis />
+                                        <XAxis dataKey="severidad" label={{ value: 'Severidad', position: 'insideBottom', offset: 0 }} />
+                                        <YAxis label={{ value: 'Cantidad', angle: -90, position: 'insideLeft' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <Bar dataKey="cantidad" fill={COLORS.primary} />
                                     </RechartsBarChart>
@@ -2412,8 +2412,8 @@ export default function AnaliticaPage() {
                                 >
                                     <RechartsBarChart data={getRendimientoPorCarrera()}>
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="carrera" angle={-45} textAnchor="end" height={100} />
-                                        <YAxis />
+                                        <XAxis dataKey="carrera" angle={-45} textAnchor="end" height={100} label={{ value: 'Carrera', position: 'insideBottom', offset: 0 }} />
+                                        <YAxis label={{ value: '% Aprobación', angle: -90, position: 'insideLeft' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <Bar dataKey="porcentajeAprobacion" fill={COLORS.success} />
                                     </RechartsBarChart>
@@ -2446,8 +2446,8 @@ export default function AnaliticaPage() {
                                 >
                                     <RechartsBarChart data={getTopFactoresRiesgo()} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" />
-                                        <YAxis dataKey="factor" type="category" width={120} />
+                                        <XAxis type="number" label={{ value: 'Cantidad', position: 'insideBottom', offset: -2 }} />
+                                        <YAxis dataKey="factor" type="category" width={120} label={{ value: 'Factor', angle: -90, position: 'insideLeft' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
                                         <Bar dataKey="cantidad" fill={COLORS.danger} fillOpacity={1} />
                                     </RechartsBarChart>
@@ -2490,8 +2490,8 @@ export default function AnaliticaPage() {
                             >
                                 <LineChart data={getTendenciaTemporal()}>
                                     <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="mes" />
-                                    <YAxis />
+                                    <XAxis dataKey="mes" label={{ value: 'Mes', position: 'insideBottom', offset: 0 }} />
+                                    <YAxis label={{ value: 'Valor', angle: -90, position: 'insideLeft' }} />
                                     <ChartTooltip content={<ChartTooltipContent />} />
                                     <Legend />
                                     <Line type="monotone" dataKey="factores" stroke={COLORS.danger} strokeWidth={2} />
