@@ -242,14 +242,38 @@ export default function FactoresConfigPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!formData.nombre) {
-            toast.error('El nombre es requerido')
+        // Validar nombre
+        const nombreTrimmed = formData.nombre.trim()
+        if (!nombreTrimmed) {
+            toast.error('El nombre es requerido y no puede estar vacío')
             return
         }
 
-        if (activeTab === 'subfactores' && !formData.id_factor) {
-            toast.error('Debe seleccionar un factor')
+        // Validar longitud mínima del nombre
+        if (nombreTrimmed.length < 3) {
+            toast.error('El nombre debe tener al menos 3 caracteres')
             return
+        }
+
+        // Validar descripción si se proporciona (no solo espacios)
+        const descripcionTrimmed = formData.descripcion?.trim() || null
+        if (formData.descripcion && descripcionTrimmed && descripcionTrimmed.length === 0) {
+            toast.error('La descripción no puede contener solo espacios')
+            return
+        }
+
+        if (activeTab === 'subfactores') {
+            if (!formData.id_factor) {
+                toast.error('Debe seleccionar un factor')
+                return
+            }
+
+            // Validar que el factor sea un número válido
+            const factorNum = parseInt(formData.id_factor)
+            if (isNaN(factorNum)) {
+                toast.error('El factor seleccionado no es válido')
+                return
+            }
         }
 
         try {
@@ -259,8 +283,8 @@ export default function FactoresConfigPage() {
                     const { error } = await supabase
                         .from('factor')
                         .update({
-                            nombre: formData.nombre,
-                            categoria: formData.categoria || null
+                            nombre: nombreTrimmed,
+                            categoria: formData.categoria?.trim() || null
                         })
                         .eq('id_factor', editingFactor.id_factor)
 
@@ -271,8 +295,8 @@ export default function FactoresConfigPage() {
                     const { error } = await supabase
                         .from('factor')
                         .insert({
-                            nombre: formData.nombre,
-                            categoria: formData.categoria || null
+                            nombre: nombreTrimmed,
+                            categoria: formData.categoria?.trim() || null
                         })
 
                     if (error) throw error
@@ -280,14 +304,15 @@ export default function FactoresConfigPage() {
                 }
                 fetchFactores()
             } else {
+                const factorNum = parseInt(formData.id_factor)
                 if (isEditing && editingFactor) {
                     // Actualizar subfactor
                     const { error } = await supabase
                         .from('subfactor')
                         .update({
-                            nombre: formData.nombre,
-                            descripcion: formData.descripcion || null,
-                            id_factor: parseInt(formData.id_factor)
+                            nombre: nombreTrimmed,
+                            descripcion: descripcionTrimmed,
+                            id_factor: factorNum
                         })
                         .eq('id_subfactor', editingFactor.id_subfactor)
 
@@ -298,9 +323,9 @@ export default function FactoresConfigPage() {
                     const { error } = await supabase
                         .from('subfactor')
                         .insert({
-                            nombre: formData.nombre,
-                            descripcion: formData.descripcion || null,
-                            id_factor: parseInt(formData.id_factor)
+                            nombre: nombreTrimmed,
+                            descripcion: descripcionTrimmed,
+                            id_factor: factorNum
                         })
 
                     if (error) throw error

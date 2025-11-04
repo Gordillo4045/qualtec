@@ -106,15 +106,47 @@ export default function CarrerasPage() {
             return
         }
 
+        // Validar campos requeridos
+        const nombreTrimmed = formData.nombre.trim()
+        const claveTrimmed = formData.clave.trim()
+
+        if (!nombreTrimmed) {
+            toast.error('El nombre de la carrera es requerido')
+            return
+        }
+
+        if (!claveTrimmed) {
+            toast.error('La clave de la carrera es requerida')
+            return
+        }
+
+        // Validar longitud mínima
+        if (nombreTrimmed.length < 3) {
+            toast.error('El nombre de la carrera debe tener al menos 3 caracteres')
+            return
+        }
+
+        if (claveTrimmed.length < 2) {
+            toast.error('La clave de la carrera debe tener al menos 2 caracteres')
+            return
+        }
+
+        // Validar que el departamento sea un número válido
+        const departamentoNum = parseInt(formData.id_departamento)
+        if (!formData.id_departamento || isNaN(departamentoNum)) {
+            toast.error('Debe seleccionar un departamento válido')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar carrera existente
                 const { error } = await supabase
                     .from('carrera')
                     .update({
-                        nombre: formData.nombre,
-                        clave: formData.clave,
-                        id_departamento: parseInt(formData.id_departamento)
+                        nombre: nombreTrimmed,
+                        clave: claveTrimmed,
+                        id_departamento: departamentoNum
                     })
                     .eq('id_carrera', editingCarrera?.id_carrera)
 
@@ -124,9 +156,9 @@ export default function CarrerasPage() {
                 const { error } = await supabase
                     .from('carrera')
                     .insert({
-                        nombre: formData.nombre,
-                        clave: formData.clave,
-                        id_departamento: parseInt(formData.id_departamento)
+                        nombre: nombreTrimmed,
+                        clave: claveTrimmed,
+                        id_departamento: departamentoNum
                     })
 
                 if (error) throw error

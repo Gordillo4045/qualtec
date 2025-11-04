@@ -266,10 +266,37 @@ export default function FactoresPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
+        // Validar campos requeridos
         if (!formData.id_estudiante || !formData.id_periodo || !formData.id_factor || !formData.id_subfactor || !formData.severidad) {
             toast.error('Por favor completa todos los campos requeridos')
             return
         }
+
+        // Validar severidad (debe estar entre 1 y 5)
+        const severidadNum = parseInt(formData.severidad)
+        if (isNaN(severidadNum) || severidadNum < 1 || severidadNum > 5) {
+            toast.error('La severidad debe ser un número entre 1 y 5')
+            return
+        }
+
+        // Validar que los IDs sean números válidos
+        const periodoNum = parseInt(formData.id_periodo)
+        const factorNum = parseInt(formData.id_factor)
+        const subfactorNum = parseInt(formData.id_subfactor)
+
+        if (isNaN(periodoNum) || isNaN(factorNum) || isNaN(subfactorNum)) {
+            toast.error('Error: Los valores seleccionados no son válidos')
+            return
+        }
+
+        // Validar que la observación no sea solo espacios (si se proporciona)
+        if (formData.observacion && formData.observacion.trim().length === 0) {
+            toast.error('La observación no puede contener solo espacios')
+            return
+        }
+
+        // Limpiar observación (trim y null si está vacío)
+        const observacionLimpiada = formData.observacion?.trim() || null
 
         try {
             if (isEditing && editingFactor) {
@@ -278,11 +305,11 @@ export default function FactoresPage() {
                     .from('estudiante_factor')
                     .update({
                         id_estudiante: formData.id_estudiante,
-                        id_periodo: parseInt(formData.id_periodo),
-                        id_factor: parseInt(formData.id_factor),
-                        id_subfactor: parseInt(formData.id_subfactor),
-                        severidad: parseInt(formData.severidad),
-                        observacion: formData.observacion || null
+                        id_periodo: periodoNum,
+                        id_factor: factorNum,
+                        id_subfactor: subfactorNum,
+                        severidad: severidadNum,
+                        observacion: observacionLimpiada
                     })
                     .eq('id_estudiante_factor', editingFactor.id_estudiante_factor)
 
@@ -294,11 +321,11 @@ export default function FactoresPage() {
                     .from('estudiante_factor')
                     .insert({
                         id_estudiante: formData.id_estudiante,
-                        id_periodo: parseInt(formData.id_periodo),
-                        id_factor: parseInt(formData.id_factor),
-                        id_subfactor: parseInt(formData.id_subfactor),
-                        severidad: parseInt(formData.severidad),
-                        observacion: formData.observacion || null
+                        id_periodo: periodoNum,
+                        id_factor: factorNum,
+                        id_subfactor: subfactorNum,
+                        severidad: severidadNum,
+                        observacion: observacionLimpiada
                     })
 
                 if (error) throw error

@@ -115,15 +115,42 @@ export default function GruposPage() {
             return
         }
 
+        // Validar campos requeridos
+        const claveTrimmed = formData.clave.trim()
+        const turnoTrimmed = formData.turno.trim()
+
+        if (!claveTrimmed) {
+            toast.error('La clave del grupo es requerida')
+            return
+        }
+
+        if (!turnoTrimmed) {
+            toast.error('El turno es requerido')
+            return
+        }
+
+        // Validar longitud mínima de la clave
+        if (claveTrimmed.length < 2) {
+            toast.error('La clave del grupo debe tener al menos 2 caracteres')
+            return
+        }
+
+        // Validar que la carrera sea un número válido
+        const carreraNum = parseInt(formData.id_carrera)
+        if (!formData.id_carrera || isNaN(carreraNum)) {
+            toast.error('Debe seleccionar una carrera válida')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar grupo existente
                 const { error } = await supabase
                     .from('grupo')
                     .update({
-                        clave: formData.clave,
-                        turno: formData.turno,
-                        id_carrera: parseInt(formData.id_carrera)
+                        clave: claveTrimmed,
+                        turno: turnoTrimmed,
+                        id_carrera: carreraNum
                     })
                     .eq('id_grupo', editingGrupo?.id_grupo)
 
@@ -133,9 +160,9 @@ export default function GruposPage() {
                 const { error } = await supabase
                     .from('grupo')
                     .insert({
-                        clave: formData.clave,
-                        turno: formData.turno,
-                        id_carrera: parseInt(formData.id_carrera)
+                        clave: claveTrimmed,
+                        turno: turnoTrimmed,
+                        id_carrera: carreraNum
                     })
 
                 if (error) throw error

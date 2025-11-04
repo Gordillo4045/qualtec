@@ -94,13 +94,26 @@ export default function DepartamentosPage() {
             return
         }
 
+        // Validar que el nombre no esté vacío o solo espacios
+        const nombreTrimmed = formData.nombre.trim()
+        if (!nombreTrimmed) {
+            toast.error('El nombre del departamento es requerido y no puede estar vacío')
+            return
+        }
+
+        // Validar longitud mínima del nombre
+        if (nombreTrimmed.length < 3) {
+            toast.error('El nombre del departamento debe tener al menos 3 caracteres')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar departamento existente
                 const { error } = await supabase
                     .from('departamento')
                     .update({
-                        nombre: formData.nombre
+                        nombre: nombreTrimmed
                     })
                     .eq('id_departamento', editingDepartamento?.id_departamento)
 
@@ -110,7 +123,7 @@ export default function DepartamentosPage() {
                 const { error } = await supabase
                     .from('departamento')
                     .insert({
-                        nombre: formData.nombre
+                        nombre: nombreTrimmed
                     })
 
                 if (error) throw error

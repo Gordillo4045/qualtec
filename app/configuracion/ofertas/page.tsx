@@ -179,15 +179,31 @@ export default function OfertasPage() {
             return
         }
 
+        // Validar que todos los campos estén seleccionados
+        if (!formData.id_materia || !formData.id_periodo || !formData.id_grupo) {
+            toast.error('Debe seleccionar materia, periodo y grupo')
+            return
+        }
+
+        // Validar que los IDs sean números válidos
+        const materiaNum = parseInt(formData.id_materia)
+        const periodoNum = parseInt(formData.id_periodo)
+        const grupoNum = parseInt(formData.id_grupo)
+
+        if (isNaN(materiaNum) || isNaN(periodoNum) || isNaN(grupoNum)) {
+            toast.error('Error: Los valores seleccionados no son válidos')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar oferta existente
                 const { error } = await supabase
                     .from('oferta')
                     .update({
-                        id_materia: parseInt(formData.id_materia),
-                        id_periodo: parseInt(formData.id_periodo),
-                        id_grupo: parseInt(formData.id_grupo)
+                        id_materia: materiaNum,
+                        id_periodo: periodoNum,
+                        id_grupo: grupoNum
                     })
                     .eq('id_oferta', editingOferta?.id_oferta)
 
@@ -197,9 +213,9 @@ export default function OfertasPage() {
                 const { error } = await supabase
                     .from('oferta')
                     .insert({
-                        id_materia: parseInt(formData.id_materia),
-                        id_periodo: parseInt(formData.id_periodo),
-                        id_grupo: parseInt(formData.id_grupo)
+                        id_materia: materiaNum,
+                        id_periodo: periodoNum,
+                        id_grupo: grupoNum
                     })
 
                 if (error) throw error

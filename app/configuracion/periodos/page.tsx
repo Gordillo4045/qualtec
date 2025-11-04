@@ -135,9 +135,35 @@ export default function PeriodosPage() {
             return
         }
 
+        // Validar que el año sea un número válido
+        const anioNum = parseInt(formData.anio)
+        if (isNaN(anioNum) || anioNum < 2000 || anioNum > 2100) {
+            toast.error('El año debe ser un número válido entre 2000 y 2100')
+            return
+        }
+
         // Validar que las fechas estén seleccionadas
         if (!inicioDate || !finDate) {
             toast.error('Por favor selecciona las fechas de inicio y fin')
+            return
+        }
+
+        // Validar que las fechas sean válidas
+        if (!isValidDate(inicioDate) || !isValidDate(finDate)) {
+            toast.error('Las fechas seleccionadas no son válidas')
+            return
+        }
+
+        // Validar que la fecha de fin sea posterior a la fecha de inicio
+        if (finDate <= inicioDate) {
+            toast.error('La fecha de fin debe ser posterior a la fecha de inicio')
+            return
+        }
+
+        // Validar que la etiqueta no esté vacía o solo espacios
+        const etiquetaTrimmed = formData.etiqueta.trim()
+        if (!etiquetaTrimmed) {
+            toast.error('La etiqueta del periodo es requerida')
             return
         }
 
@@ -153,8 +179,8 @@ export default function PeriodosPage() {
                 const { error } = await supabase
                     .from('periodo')
                     .update({
-                        anio: parseInt(formData.anio),
-                        etiqueta: formData.etiqueta,
+                        anio: anioNum,
+                        etiqueta: etiquetaTrimmed,
                         inicio: inicioDate.toISOString().split('T')[0],
                         fin: finDate.toISOString().split('T')[0]
                     })
@@ -166,8 +192,8 @@ export default function PeriodosPage() {
                 const { error } = await supabase
                     .from('periodo')
                     .insert({
-                        anio: parseInt(formData.anio),
-                        etiqueta: formData.etiqueta,
+                        anio: anioNum,
+                        etiqueta: etiquetaTrimmed,
                         inicio: inicioDate.toISOString().split('T')[0],
                         fin: finDate.toISOString().split('T')[0]
                     })

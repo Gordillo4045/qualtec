@@ -88,8 +88,15 @@ export default function ModalidadesPage() {
         e.preventDefault()
 
         // Validar campos requeridos
-        if (!formData.nombre) {
-            toast.error('Por favor ingresa el nombre de la modalidad')
+        const nombreTrimmed = formData.nombre.trim()
+        if (!nombreTrimmed) {
+            toast.error('El nombre de la modalidad es requerido y no puede estar vacío')
+            return
+        }
+
+        // Validar longitud mínima
+        if (nombreTrimmed.length < 3) {
+            toast.error('El nombre de la modalidad debe tener al menos 3 caracteres')
             return
         }
 
@@ -99,7 +106,7 @@ export default function ModalidadesPage() {
                 const { error } = await supabase
                     .from('modalidad')
                     .update({
-                        nombre: formData.nombre
+                        nombre: nombreTrimmed
                     })
                     .eq('id_modalidad', editingModalidad?.id_modalidad)
 
@@ -109,7 +116,7 @@ export default function ModalidadesPage() {
                 const { error } = await supabase
                     .from('modalidad')
                     .insert({
-                        nombre: formData.nombre
+                        nombre: nombreTrimmed
                     })
 
                 if (error) throw error

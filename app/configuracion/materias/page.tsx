@@ -165,16 +165,55 @@ export default function MateriasPage() {
             return
         }
 
+        // Validar campos requeridos
+        const nombreTrimmed = formData.nombre.trim()
+        const claveTrimmed = formData.clave.trim()
+
+        if (!nombreTrimmed) {
+            toast.error('El nombre de la materia es requerido')
+            return
+        }
+
+        if (!claveTrimmed) {
+            toast.error('La clave de la materia es requerida')
+            return
+        }
+
+        // Validar longitud mínima
+        if (nombreTrimmed.length < 3) {
+            toast.error('El nombre de la materia debe tener al menos 3 caracteres')
+            return
+        }
+
+        if (claveTrimmed.length < 2) {
+            toast.error('La clave de la materia debe tener al menos 2 caracteres')
+            return
+        }
+
+        // Validar créditos (debe ser un número positivo)
+        const creditosNum = parseInt(formData.creditos)
+        if (!formData.creditos || isNaN(creditosNum) || creditosNum < 1) {
+            toast.error('Los créditos deben ser un número entero positivo (mayor a 0)')
+            return
+        }
+
+        // Validar que el departamento sea un número válido
+        const departamentoNum = parseInt(formData.id_departamento)
+        if (!formData.id_departamento || isNaN(departamentoNum)) {
+            toast.error('Debe seleccionar un departamento válido')
+            return
+        }
+
         try {
             if (isEditing) {
                 // Actualizar materia existente
                 const { error } = await supabase
                     .from('materia')
                     .update({
-                        nombre: formData.nombre,
-                        clave: formData.clave,
-                        creditos: parseInt(formData.creditos),
-                        id_departamento: parseInt(formData.id_departamento)
+                        nombre: nombreTrimmed,
+                        clave: claveTrimmed,
+                        creditos: creditosNum,
+                        id_departamento: departamentoNum
                     })
                     .eq('id_materia', editingMateria?.id_materia)
 
@@ -184,10 +223,10 @@ export default function MateriasPage() {
                 const { error } = await supabase
                     .from('materia')
                     .insert({
-                        nombre: formData.nombre,
-                        clave: formData.clave,
-                        creditos: parseInt(formData.creditos),
-                        id_departamento: parseInt(formData.id_departamento)
+                        nombre: nombreTrimmed,
+                        clave: claveTrimmed,
+                        creditos: creditosNum,
+                        id_departamento: departamentoNum
                     })
 
                 if (error) throw error

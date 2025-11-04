@@ -368,6 +368,22 @@ export default function InscripcionesPage() {
             return
         }
 
+        // Validar intentos (debe ser un número entero positivo)
+        const intentosNum = parseInt(formData.intentos)
+        if (!formData.intentos || isNaN(intentosNum) || intentosNum < 1) {
+            showError(
+                'Intentos Inválidos',
+                'El número de intentos debe ser un número entero positivo.',
+                [
+                    '• Los intentos deben ser un número mayor a 0',
+                    '• Valores válidos: 1, 2, 3, ...',
+                    '• Este campo es requerido'
+                ],
+                'validation'
+            )
+            return
+        }
+
         try {
             let inscripcionId: number
 
