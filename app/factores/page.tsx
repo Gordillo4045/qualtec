@@ -225,13 +225,25 @@ export default function FactoresPage() {
         let filtered = estudianteFactores
 
         if (searchTerm) {
-            filtered = filtered.filter(ef =>
-                ef.estudiante?.nombres?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                ef.estudiante?.ap_paterno?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                ef.estudiante?.ap_materno?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                ef.factor?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                ef.subfactor?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
-            )
+            const searchLower = searchTerm.toLowerCase().trim()
+            const searchWords = searchLower.split(/\s+/).filter(word => word.length > 0)
+
+            filtered = filtered.filter(ef => {
+                const nombreCompleto = `${ef.estudiante?.nombres || ''} ${ef.estudiante?.ap_paterno || ''} ${ef.estudiante?.ap_materno || ''}`.toLowerCase().trim()
+                const factorNombre = (ef.factor?.nombre || '').toLowerCase()
+                const subfactorNombre = (ef.subfactor?.nombre || '').toLowerCase()
+
+                if (searchWords.length === 1) {
+                    const word = searchWords[0]
+                    return nombreCompleto.includes(word) ||
+                        factorNombre.includes(word) ||
+                        subfactorNombre.includes(word)
+                }
+
+                return searchWords.every(word => nombreCompleto.includes(word)) ||
+                    factorNombre.includes(searchLower) ||
+                    subfactorNombre.includes(searchLower)
+            })
         }
 
         if (selectedFactor && selectedFactor !== 'all') {
