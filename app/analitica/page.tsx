@@ -141,9 +141,6 @@ const svgToPngDataUrl = async (svg: SVGSVGElement, targetWidth = 1000): Promise<
     return canvas.toDataURL('image/png')
 }
 
-// (moved) Estrategia de generación para cards definida dentro del componente
-
-// Utilidad sencilla para dibujar tablas sin dependencias externas
 const drawTable = (
     pdf: jsPDF,
     headers: string[],
@@ -240,7 +237,7 @@ export default function AnaliticaPage() {
         periodo: '',
         carrera: '',
         variable: 'reprobacion',
-        agruparPor: 'periodo' as 'periodo' | 'unidad' | 'materia'
+        agruparPor: 'materia' as 'periodo' | 'unidad' | 'materia'
     })
 
     // Estados para generación de reportes
@@ -248,34 +245,6 @@ export default function AnaliticaPage() {
     const [reportType, setReportType] = useState('')
 
     const supabase = createClient()
-
-    // Estrategia de generación de PDF desde las cards (Strategy Pattern)
-    const cardReportStrategies: Record<'academico' | 'riesgo' | 'estadisticas' | 'asistencia', () => Promise<void>> = {
-        academico: async () => {
-            await generarPDFCompleto()
-        },
-        riesgo: async () => {
-            setParetoConfig(prev => ({ ...prev, variable: prev.variable || 'factores' }))
-            await generarPDFCompleto()
-        },
-        estadisticas: async () => {
-            await generarPDFCompleto()
-        },
-        asistencia: async () => {
-            setControlConfig(prev => ({ ...prev, variable: 'asistencia' }))
-            await generarPDFCompleto()
-        }
-    }
-
-    const handleCardGenerate = async (type: 'academico' | 'riesgo' | 'estadisticas' | 'asistencia') => {
-        if (generatingReport) return
-        try {
-            setGeneratingReport(true)
-            await cardReportStrategies[type]()
-        } finally {
-            setGeneratingReport(false)
-        }
-    }
 
     useEffect(() => {
         fetchData()
@@ -759,6 +728,18 @@ export default function AnaliticaPage() {
                     .slice(0, 10)
                 break
         }
+
+        // Calcular porcentaje acumulado para el análisis de Pareto
+        const total = result.reduce((sum: number, item: any) => sum + Number(item.reprobados), 0)
+        let acumulado = 0
+        result = result.map((item: any) => {
+            acumulado += Number(item.reprobados)
+            const porcentajeAcumulado = total > 0 ? ((acumulado / total) * 100) : 0
+            return {
+                ...item,
+                porcentajeAcumulado: Number(porcentajeAcumulado.toFixed(1))
+            }
+        })
 
         return result
     }
@@ -1931,115 +1912,9 @@ export default function AnaliticaPage() {
                     </div>
                 </div>
 
-                {/* Lanzadores de análisis (cards) */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    {/* Helper invisible para scroll */}
-                    {null}
-
-                    {/* Card: Rendimiento Académico */}
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
-                                <BarChart3 className="h-8 w-8 text-blue-600" />
-                                <Badge variant="outline">Académico</Badge>
-                            </div>
-                            <CardTitle className="text-lg">Rendimiento Académico</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                Análisis de calificaciones, promedios y tendencias por carrera
-                            </p>
-                            <Button
-                                size="sm"
-                                className="w-full"
-                                disabled={generatingReport}
-                                onClick={() => handleCardGenerate('academico')}
-                            >
-                                {generatingReport ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                                {generatingReport ? 'Generando PDF...' : 'Generar'}
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    {/* Card: Factores de Riesgo */}
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
-                                <AlertTriangle className="h-8 w-8 text-red-600" />
-                                <Badge variant="outline">Riesgo</Badge>
-                            </div>
-                            <CardTitle className="text-lg">Factores de Riesgo</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                Identificación y análisis de factores que afectan el rendimiento
-                            </p>
-                            <Button
-                                size="sm"
-                                className="w-full"
-                                disabled={generatingReport}
-                                onClick={() => handleCardGenerate('riesgo')}
-                            >
-                                {generatingReport ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                                {generatingReport ? 'Generando PDF...' : 'Generar'}
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    {/* Card: Estadísticas Generales */}
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
-                                <PieChartIcon className="h-8 w-8 text-green-600" />
-                                <Badge variant="outline">Estadístico</Badge>
-                            </div>
-                            <CardTitle className="text-lg">Estadísticas Generales</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                Métricas generales del sistema y comparativas
-                            </p>
-                            <Button
-                                size="sm"
-                                className="w-full"
-                                disabled={generatingReport}
-                                onClick={() => handleCardGenerate('estadisticas')}
-                            >
-                                {generatingReport ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                                {generatingReport ? 'Generando PDF...' : 'Generar'}
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    {/* Card: Reporte de Asistencia */}
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
-                                <Users className="h-8 w-8 text-purple-600" />
-                                <Badge variant="outline">Asistencia</Badge>
-                            </div>
-                            <CardTitle className="text-lg">Reporte de Asistencia</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                Análisis de asistencia por materia, grupo y periodo
-                            </p>
-                            <Button
-                                size="sm"
-                                className="w-full"
-                                disabled={generatingReport}
-                                onClick={() => handleCardGenerate('asistencia')}
-                            >
-                                {generatingReport ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                                {generatingReport ? 'Generando PDF...' : 'Generar'}
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </div>
 
                 {/* Análisis Específicos de Calidad */}
                 <div className="space-y-6">
-                    <h2 className="text-2xl font-bold tracking-tight">Análisis Específicos de Calidad</h2>
 
                     {/* Gráficos de Análisis Específicos */}
                     <div className="grid gap-6 lg:grid-cols-2 ">
@@ -2136,16 +2011,31 @@ export default function AnaliticaPage() {
                                         reprobados: {
                                             label: "Reprobados",
                                         },
+                                        porcentajeAcumulado: {
+                                            label: "% Acumulado",
+                                        },
                                     }}
                                     className="h-[300px] w-full"
                                 >
-                                    <RechartsBarChart data={getAnalisisPareto()}>
+                                    <ComposedChart data={getAnalisisPareto()}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="grupo" angle={-45} textAnchor="end" height={100} label={{ value: 'Grupo', position: 'insideBottom', offset: 0 }} />
-                                        <YAxis label={{ value: 'Reprobados', angle: -90, position: 'insideLeft' }} />
+                                        <YAxis yAxisId="left" label={{ value: 'Reprobados', angle: -90, position: 'insideLeft' }} />
+                                        <YAxis yAxisId="right" orientation="right" domain={[0, 100]} label={{ value: '% Acumulado', angle: 90, position: 'insideRight' }} />
                                         <ChartTooltip content={<ChartTooltipContent />} />
-                                        <Bar dataKey="reprobados" fill={COLORS.danger} />
-                                    </RechartsBarChart>
+                                        <Legend />
+                                        <Bar yAxisId="left" dataKey="reprobados" fill={COLORS.danger} name="Reprobados" />
+                                        <Line
+                                            yAxisId="right"
+                                            type="monotone"
+                                            dataKey="porcentajeAcumulado"
+                                            stroke={COLORS.primary}
+                                            strokeWidth={2}
+                                            dot={{ fill: COLORS.primary, r: 4 }}
+                                            name="% Acumulado"
+                                        />
+                                        <ReferenceLine yAxisId="right" y={80} stroke="#ff6b6b" strokeDasharray="5 5" strokeOpacity={0.5} label={{ value: "80%", position: "right", fill: "#ff6b6b", opacity: 0.6 }} />
+                                    </ComposedChart>
                                 </ChartContainer>
                             </CardContent>
                         </Card>
