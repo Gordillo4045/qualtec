@@ -136,13 +136,25 @@ export default function EstudiantesPage() {
 
         // Filtrar por término de búsqueda
         if (searchTerm) {
-            filtered = filtered.filter(estudiante =>
-                estudiante.nombres.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                estudiante.ap_paterno.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                estudiante.ap_materno.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                estudiante.numero_control.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                estudiante.email.toLowerCase().includes(searchTerm.toLowerCase())
-            )
+            const searchLower = searchTerm.toLowerCase().trim()
+            const searchWords = searchLower.split(/\s+/).filter(word => word.length > 0)
+
+            filtered = filtered.filter(estudiante => {
+                const nombreCompleto = `${estudiante.nombres || ''} ${estudiante.ap_paterno || ''} ${estudiante.ap_materno || ''}`.toLowerCase().trim()
+                const numeroControl = (estudiante.numero_control || '').toLowerCase()
+                const email = (estudiante.email || '').toLowerCase()
+
+                if (searchWords.length === 1) {
+                    const word = searchWords[0]
+                    return nombreCompleto.includes(word) ||
+                        numeroControl.includes(word) ||
+                        email.includes(word)
+                }
+
+                return searchWords.every(word => nombreCompleto.includes(word)) ||
+                    numeroControl.includes(searchLower) ||
+                    email.includes(searchLower)
+            })
         }
 
         // Filtrar por carrera
@@ -214,29 +226,104 @@ export default function EstudiantesPage() {
         return pages
     }
 
+    const validateForm = () => {
+        // Validar campos requeridos no nulos/vacíos
+        const camposRequeridos = [
+            { campo: 'numero_control', label: 'Número de control' },
+            { campo: 'ap_paterno', label: 'Apellido paterno' },
+            { campo: 'ap_materno', label: 'Apellido materno' },
+            { campo: 'nombres', label: 'Nombres' },
+            { campo: 'estatus', label: 'Estatus' },
+            { campo: 'id_carrera', label: 'Carrera' },
+            { campo: 'id_modalidad', label: 'Modalidad' },
+            { campo: 'genero', label: 'Género' },
+            { campo: 'email', label: 'Email' },
+            { campo: 'telefono', label: 'Teléfono' }
+        ]
+
+        for (const { campo, label } of camposRequeridos) {
+            const valor = formData[campo as keyof typeof formData]
+            if (!valor || (typeof valor === 'string' && valor.trim() === '')) {
+                toast.error(`El campo "${label}" es requerido`)
+                return false
+            }
+        }
+
+        // Validar fecha de nacimiento
+        if (!fechaNacimiento) {
+            toast.error('La fecha de nacimiento es requerida')
+            return false
+        }
+
+        // Validar que la fecha de nacimiento sea realista (no puede ser del futuro)
+        const hoy = new Date()
+        hoy.setHours(0, 0, 0, 0)
+        if (fechaNacimiento > hoy) {
+            toast.error('La fecha de nacimiento no puede ser una fecha futura')
+            return false
+        }
+
+        // Validar que el estudiante tenga al menos 15 años (edad mínima razonable para estudiantes)
+        const edadMinima = new Date()
+        edadMinima.setFullYear(edadMinima.getFullYear() - 18)
+        if (fechaNacimiento > edadMinima) {
+            toast.error('El estudiante debe tener al menos 18 años')
+            return false
+        }
+
+        // Validar que el estudiante no tenga más de 100 años (edad máxima razonable)
+        const edadMaxima = new Date()
+        edadMaxima.setFullYear(edadMaxima.getFullYear() - 100)
+        if (fechaNacimiento < edadMaxima) {
+            toast.error('La fecha de nacimiento no es válida (edad máxima: 100 años)')
+            return false
+        }
+
+        // Validar formato de email: debe ser l{numero_control}@tectijuana.edu.mx
+        const emailEsperado = `l${formData.numero_control.trim()}@tectijuana.edu.mx`.toLowerCase()
+        const emailIngresado = formData.email.trim().toLowerCase()
+
+        if (emailIngresado !== emailEsperado) {
+            toast.error(`El email debe tener el formato: l{numero_control}@tectijuana.edu.mx. Ejemplo: ${emailEsperado}`)
+            return false
+        }
+
+        // Validar teléfono: debe tener exactamente 10 dígitos (solo números)
+        const telefonoLimpiado = formData.telefono.replace(/\D/g, '') // Remover todo lo que no sea dígito
+        if (telefonoLimpiado.length !== 10) {
+            toast.error('El teléfono debe tener exactamente 10 dígitos')
+            return false
+        }
+
+        return true
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Validar campos requeridos
-        if (!formData.numero_control || !formData.ap_paterno || !formData.ap_materno || !formData.nombres) {
-            toast.error('Por favor completa todos los campos requeridos')
+        // Validar formulario
+        if (!validateForm()) {
             return
         }
 
         try {
+            // Limpiar y normalizar datos antes de guardar
+            const telefonoLimpiado = formData.telefono.replace(/\D/g, '') // Solo dígitos
+            const emailLimpiado = formData.email.trim().toLowerCase() // Email en minúsculas y sin espacios
+
             if (isEditing) {
                 // Actualizar estudiante existente
                 const { error } = await supabase
                     .from('estudiante')
                     .update({
-                        numero_control: formData.numero_control,
-                        ap_paterno: formData.ap_paterno,
-                        ap_materno: formData.ap_materno,
-                        nombres: formData.nombres,
+                        numero_control: formData.numero_control.trim(),
+                        ap_paterno: formData.ap_paterno.trim(),
+                        ap_materno: formData.ap_materno.trim(),
+                        nombres: formData.nombres.trim(),
                         genero: formData.genero || null,
                         fecha_nacimiento: fechaNacimiento ? fechaNacimiento.toISOString().split('T')[0] : null,
-                        email: formData.email || null,
-                        telefono: formData.telefono || null,
+                        email: emailLimpiado || null,
+                        telefono: telefonoLimpiado || null,
                         id_carrera: formData.id_carrera ? parseInt(formData.id_carrera) : null,
                         id_modalidad: formData.id_modalidad ? parseInt(formData.id_modalidad) : null,
                         estatus: formData.estatus
@@ -249,14 +336,14 @@ export default function EstudiantesPage() {
                 const { error } = await supabase
                     .from('estudiante')
                     .insert({
-                        numero_control: formData.numero_control,
-                        ap_paterno: formData.ap_paterno,
-                        ap_materno: formData.ap_materno,
-                        nombres: formData.nombres,
+                        numero_control: formData.numero_control.trim(),
+                        ap_paterno: formData.ap_paterno.trim(),
+                        ap_materno: formData.ap_materno.trim(),
+                        nombres: formData.nombres.trim(),
                         genero: formData.genero || null,
                         fecha_nacimiento: fechaNacimiento ? fechaNacimiento.toISOString().split('T')[0] : null,
-                        email: formData.email || null,
-                        telefono: formData.telefono || null,
+                        email: emailLimpiado || null,
+                        telefono: telefonoLimpiado || null,
                         id_carrera: formData.id_carrera ? parseInt(formData.id_carrera) : null,
                         id_modalidad: formData.id_modalidad ? parseInt(formData.id_modalidad) : null,
                         estatus: formData.estatus
@@ -481,8 +568,19 @@ export default function EstudiantesPage() {
                                             <Input
                                                 id="numero_control"
                                                 value={formData.numero_control}
-                                                onChange={(e) => setFormData({ ...formData, numero_control: e.target.value })}
-                                                placeholder="2024001"
+                                                onChange={(e) => {
+                                                    const numeroControl = e.target.value
+                                                    // Auto-generar email basado en el número de control
+                                                    const emailGenerado = numeroControl.trim()
+                                                        ? `l${numeroControl.trim()}@tectijuana.edu.mx`
+                                                        : ''
+                                                    setFormData({
+                                                        ...formData,
+                                                        numero_control: numeroControl,
+                                                        email: emailGenerado
+                                                    })
+                                                }}
+                                                placeholder="21212372"
                                                 required
                                             />
                                         </Field>
@@ -606,13 +704,14 @@ export default function EstudiantesPage() {
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field>
-                                            <Label htmlFor="email">Email</Label>
+                                            <Label htmlFor="email">Email *</Label>
                                             <Input
                                                 id="email"
                                                 type="email"
                                                 value={formData.email}
                                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                placeholder="juan.perez@email.com"
+                                                placeholder="l21212372@tectijuana.edu.mx"
+                                                required
                                             />
                                         </Field>
                                         <Field>
@@ -796,21 +895,10 @@ export default function EstudiantesPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Ver detalles
-                                                        </DropdownMenuItem>
+
                                                         <DropdownMenuItem onClick={() => handleEdit(estudiante)}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <BookOpen className="mr-2 h-4 w-4" />
-                                                            Ver inscripciones
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <Users className="mr-2 h-4 w-4" />
-                                                            Ver grupo
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="text-red-600"
