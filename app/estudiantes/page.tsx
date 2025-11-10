@@ -66,6 +66,9 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
+import { EstudianteService } from "@/lib/services/estudiante-service"
+import { ValidationChain } from "@/lib/validators/validation-chain"
+import { CommandInvoker, CreateCommand, UpdateCommand, DeleteCommand } from "@/lib/commands/command-pattern"
 
 export default function EstudiantesPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -102,6 +105,10 @@ export default function EstudiantesPage() {
     const [itemsPerPage] = useState(10)
 
     const supabase = createClient()
+
+    // Inicializar servicios y comandos (se recrean en cada render, pero es necesario para hooks)
+    const [estudianteService] = useState(() => new EstudianteService(supabase))
+    const [commandInvoker] = useState(() => new CommandInvoker())
 
     const formatDate = (date: Date | undefined) => {
         if (!date) {
@@ -226,25 +233,25 @@ export default function EstudiantesPage() {
         return pages
     }
 
-    const validateForm = () => {
-        // Validar campos requeridos no nulos/vacíos
-        const camposRequeridos = [
-            { campo: 'numero_control', label: 'Número de control' },
-            { campo: 'ap_paterno', label: 'Apellido paterno' },
-            { campo: 'ap_materno', label: 'Apellido materno' },
-            { campo: 'nombres', label: 'Nombres' },
-            { campo: 'estatus', label: 'Estatus' },
-            { campo: 'id_carrera', label: 'Carrera' },
-            { campo: 'id_modalidad', label: 'Modalidad' },
-            { campo: 'genero', label: 'Género' },
-            { campo: 'email', label: 'Email' },
-            { campo: 'telefono', label: 'Teléfono' }
+    const validateForm = async () => {
+        // Usar Chain of Responsibility para validaciones
+        const validaciones = [
+            { field: 'numero_control', label: 'Número de control', value: formData.numero_control, chain: new ValidationChain().required().minLength(8).maxLength(10) },
+            { field: 'ap_paterno', label: 'Apellido paterno', value: formData.ap_paterno, chain: new ValidationChain().required().minLength(2) },
+            { field: 'ap_materno', label: 'Apellido materno', value: formData.ap_materno, chain: new ValidationChain().required().minLength(2) },
+            { field: 'nombres', label: 'Nombres', value: formData.nombres, chain: new ValidationChain().required().minLength(2) },
+            { field: 'estatus', label: 'Estatus', value: formData.estatus, chain: new ValidationChain().required() },
+            { field: 'id_carrera', label: 'Carrera', value: formData.id_carrera, chain: new ValidationChain().required() },
+            { field: 'id_modalidad', label: 'Modalidad', value: formData.id_modalidad, chain: new ValidationChain().required() },
+            { field: 'genero', label: 'Género', value: formData.genero, chain: new ValidationChain().required() },
+            { field: 'email', label: 'Email', value: formData.email, chain: new ValidationChain().required().email() },
+            { field: 'telefono', label: 'Teléfono', value: formData.telefono, chain: new ValidationChain().required().phone() },
         ]
 
-        for (const { campo, label } of camposRequeridos) {
-            const valor = formData[campo as keyof typeof formData]
-            if (!valor || (typeof valor === 'string' && valor.trim() === '')) {
-                toast.error(`El campo "${label}" es requerido`)
+        for (const { field, label, value, chain } of validaciones) {
+            const result = await chain.validate(formData, field, value)
+            if (!result.isValid) {
+                toast.error(result.error || `El campo "${label}" es inválido`)
                 return false
             }
         }
@@ -255,43 +262,24 @@ export default function EstudiantesPage() {
             return false
         }
 
-        // Validar que la fecha de nacimiento sea realista (no puede ser del futuro)
-        const hoy = new Date()
-        hoy.setHours(0, 0, 0, 0)
-        if (fechaNacimiento > hoy) {
-            toast.error('La fecha de nacimiento no puede ser una fecha futura')
+        const fechaValidator = new ValidationChain().required().dateRange(18, 100)
+        const fechaResult = await fechaValidator.validate(
+            formData,
+            'fecha_nacimiento',
+            fechaNacimiento.toISOString().split('T')[0]
+        )
+
+        if (!fechaResult.isValid) {
+            toast.error(fechaResult.error || 'La fecha de nacimiento es inválida')
             return false
         }
 
-        // Validar que el estudiante tenga al menos 15 años (edad mínima razonable para estudiantes)
-        const edadMinima = new Date()
-        edadMinima.setFullYear(edadMinima.getFullYear() - 18)
-        if (fechaNacimiento > edadMinima) {
-            toast.error('El estudiante debe tener al menos 18 años')
-            return false
-        }
-
-        // Validar que el estudiante no tenga más de 100 años (edad máxima razonable)
-        const edadMaxima = new Date()
-        edadMaxima.setFullYear(edadMaxima.getFullYear() - 100)
-        if (fechaNacimiento < edadMaxima) {
-            toast.error('La fecha de nacimiento no es válida (edad máxima: 100 años)')
-            return false
-        }
-
-        // Validar formato de email: debe ser l{numero_control}@tectijuana.edu.mx
+        // Validar formato de email específico
         const emailEsperado = `l${formData.numero_control.trim()}@tectijuana.edu.mx`.toLowerCase()
         const emailIngresado = formData.email.trim().toLowerCase()
 
         if (emailIngresado !== emailEsperado) {
             toast.error(`El email debe tener el formato: l{numero_control}@tectijuana.edu.mx. Ejemplo: ${emailEsperado}`)
-            return false
-        }
-
-        // Validar teléfono: debe tener exactamente 10 dígitos (solo números)
-        const telefonoLimpiado = formData.telefono.replace(/\D/g, '') // Remover todo lo que no sea dígito
-        if (telefonoLimpiado.length !== 10) {
-            toast.error('El teléfono debe tener exactamente 10 dígitos')
             return false
         }
 
@@ -301,8 +289,8 @@ export default function EstudiantesPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Validar formulario
-        if (!validateForm()) {
+        // Validar formulario usando Chain of Responsibility
+        if (!(await validateForm())) {
             return
         }
 
@@ -311,45 +299,53 @@ export default function EstudiantesPage() {
             const telefonoLimpiado = formData.telefono.replace(/\D/g, '') // Solo dígitos
             const emailLimpiado = formData.email.trim().toLowerCase() // Email en minúsculas y sin espacios
 
-            if (isEditing) {
-                // Actualizar estudiante existente
-                const { error } = await supabase
-                    .from('estudiante')
-                    .update({
-                        numero_control: formData.numero_control.trim(),
-                        ap_paterno: formData.ap_paterno.trim(),
-                        ap_materno: formData.ap_materno.trim(),
-                        nombres: formData.nombres.trim(),
-                        genero: formData.genero || null,
-                        fecha_nacimiento: fechaNacimiento ? fechaNacimiento.toISOString().split('T')[0] : null,
-                        email: emailLimpiado || null,
-                        telefono: telefonoLimpiado || null,
-                        id_carrera: formData.id_carrera ? parseInt(formData.id_carrera) : null,
-                        id_modalidad: formData.id_modalidad ? parseInt(formData.id_modalidad) : null,
-                        estatus: formData.estatus
-                    })
-                    .eq('id_estudiante', editingEstudiante?.id_estudiante)
+            const estudianteData = {
+                numero_control: formData.numero_control.trim(),
+                ap_paterno: formData.ap_paterno.trim(),
+                ap_materno: formData.ap_materno.trim(),
+                nombres: formData.nombres.trim(),
+                genero: formData.genero || null,
+                fecha_nacimiento: fechaNacimiento ? fechaNacimiento.toISOString().split('T')[0] : null,
+                email: emailLimpiado || null,
+                telefono: telefonoLimpiado || null,
+                id_carrera: formData.id_carrera ? parseInt(formData.id_carrera) : null,
+                id_modalidad: formData.id_modalidad ? parseInt(formData.id_modalidad) : null,
+                estatus: formData.estatus
+            }
 
-                if (error) throw error
+            if (isEditing && editingEstudiante) {
+                // Usar Command Pattern para operación reversible
+                const updateCmd = new UpdateCommand(
+                    async (id: string | number, data: any) => {
+                        return await estudianteService.update(id, data as any)
+                    },
+                    async (id) => {
+                        return await estudianteService.getById(id)
+                    },
+                    editingEstudiante.id_estudiante,
+                    estudianteData as any
+                )
+
+                const result = await commandInvoker.execute(updateCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al actualizar')
+                }
             } else {
-                // Crear nuevo estudiante
-                const { error } = await supabase
-                    .from('estudiante')
-                    .insert({
-                        numero_control: formData.numero_control.trim(),
-                        ap_paterno: formData.ap_paterno.trim(),
-                        ap_materno: formData.ap_materno.trim(),
-                        nombres: formData.nombres.trim(),
-                        genero: formData.genero || null,
-                        fecha_nacimiento: fechaNacimiento ? fechaNacimiento.toISOString().split('T')[0] : null,
-                        email: emailLimpiado || null,
-                        telefono: telefonoLimpiado || null,
-                        id_carrera: formData.id_carrera ? parseInt(formData.id_carrera) : null,
-                        id_modalidad: formData.id_modalidad ? parseInt(formData.id_modalidad) : null,
-                        estatus: formData.estatus
-                    })
+                // Usar Command Pattern para operación reversible
+                const createCmd = new CreateCommand(
+                    async (data: any) => {
+                        return await estudianteService.create(data as any)
+                    },
+                    async (id: string | number) => {
+                        await estudianteService.delete(id) as unknown as Promise<void>
+                    },
+                    estudianteData as any
+                )
 
-                if (error) throw error
+                const result = await commandInvoker.execute(createCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al crear')
+                }
             }
 
             // Recargar datos
@@ -378,27 +374,20 @@ export default function EstudiantesPage() {
             // Mostrar notificación de éxito
             toast.success(isEditing ? 'Estudiante actualizado exitosamente' : 'Estudiante creado exitosamente')
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar estudiante:', error)
-            toast.error('Error al guardar el estudiante. Inténtalo de nuevo.')
+            toast.error(error?.message || 'Error al guardar el estudiante. Inténtalo de nuevo.')
         }
     }
 
     const fetchEstudiantes = async () => {
         try {
-            const { data, error } = await supabase
-                .from('estudiante')
-                .select(`
-                    *,
-                    carrera:carrera(*),
-                    modalidad:modalidad(*)
-                `)
-                .order('numero_control', { ascending: true })
-
-            if (error) throw error
-            setEstudiantes(data || [])
+            // Usar Service Layer para obtener datos con relaciones
+            const data = await estudianteService.getEstudiantesConRelaciones()
+            setEstudiantes(data)
         } catch (error) {
             console.error('Error al cargar estudiantes:', error)
+            toast.error('Error al cargar los estudiantes')
         }
     }
 
@@ -458,17 +447,30 @@ export default function EstudiantesPage() {
     const handleDelete = async (id: string) => {
         if (confirm('¿Estás seguro de que quieres eliminar este estudiante?')) {
             try {
-                const { error } = await supabase
-                    .from('estudiante')
-                    .delete()
-                    .eq('id_estudiante', id)
+                // Usar Command Pattern para operación reversible
+                const deleteCmd = new DeleteCommand(
+                    async (id) => {
+                        await estudianteService.delete(id)
+                    },
+                    async (data) => {
+                        return await estudianteService.create(data as any)
+                    },
+                    id,
+                    async (id) => {
+                        return await estudianteService.getById(id)
+                    }
+                )
 
-                if (error) throw error
+                const result = await commandInvoker.execute(deleteCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al eliminar')
+                }
+
                 await fetchEstudiantes()
                 toast.success('Estudiante eliminado exitosamente')
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al eliminar estudiante:', error)
-                toast.error('Error al eliminar el estudiante. Inténtalo de nuevo.')
+                toast.error(error?.message || 'Error al eliminar el estudiante. Inténtalo de nuevo.')
             }
         }
     }

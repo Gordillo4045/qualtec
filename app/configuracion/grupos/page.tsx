@@ -49,6 +49,9 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
+import { GrupoService } from "@/lib/services/grupo-service"
+import { ValidationChain } from "@/lib/validators/validation-chain"
+import { CommandInvoker, CreateCommand, UpdateCommand, DeleteCommand } from "@/lib/commands/command-pattern"
 
 export default function GruposPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -67,6 +70,8 @@ export default function GruposPage() {
     const [selectedTurno, setSelectedTurno] = useState('')
 
     const supabase = createClient()
+    const [grupoService] = useState(() => new GrupoService(supabase))
+    const [commandInvoker] = useState(() => new CommandInvoker())
 
     useEffect(() => {
         fetchGrupos()
@@ -106,100 +111,99 @@ export default function GruposPage() {
         setFilteredGrupos(filtered)
     }
 
+    const validateForm = async () => {
+        const validaciones = [
+            { field: 'clave', label: 'Clave', value: formData.clave, chain: new ValidationChain().required().minLength(2) },
+            { field: 'turno', label: 'Turno', value: formData.turno, chain: new ValidationChain().required() },
+            { field: 'id_carrera', label: 'Carrera', value: formData.id_carrera, chain: new ValidationChain().required() },
+        ]
+
+        for (const { field, label, value, chain } of validaciones) {
+            const result = await chain.validate(formData, field, value)
+            if (!result.isValid) {
+                toast.error(result.error || `El campo "${label}" es inválido`)
+                return false
+            }
+        }
+
+        const carreraNum = parseInt(formData.id_carrera)
+        if (isNaN(carreraNum)) {
+            toast.error('Debe seleccionar una carrera válida')
+            return false
+        }
+
+        return true
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Validar que tenemos el ID del grupo para edición
+        if (!(await validateForm())) {
+            return
+        }
+
         if (isEditing && !editingGrupo?.id_grupo) {
             toast.error('Error: No se pudo identificar el grupo a editar')
             return
         }
 
-        // Validar campos requeridos
-        const claveTrimmed = formData.clave.trim()
-        const turnoTrimmed = formData.turno.trim()
-
-        if (!claveTrimmed) {
-            toast.error('La clave del grupo es requerida')
-            return
-        }
-
-        if (!turnoTrimmed) {
-            toast.error('El turno es requerido')
-            return
-        }
-
-        // Validar longitud mínima de la clave
-        if (claveTrimmed.length < 2) {
-            toast.error('La clave del grupo debe tener al menos 2 caracteres')
-            return
-        }
-
-        // Validar que la carrera sea un número válido
-        const carreraNum = parseInt(formData.id_carrera)
-        if (!formData.id_carrera || isNaN(carreraNum)) {
-            toast.error('Debe seleccionar una carrera válida')
-            return
-        }
-
         try {
-            if (isEditing) {
-                // Actualizar grupo existente
-                const { error } = await supabase
-                    .from('grupo')
-                    .update({
-                        clave: claveTrimmed,
-                        turno: turnoTrimmed,
-                        id_carrera: carreraNum
-                    })
-                    .eq('id_grupo', editingGrupo?.id_grupo)
+            const claveTrimmed = formData.clave.trim()
+            const turnoTrimmed = formData.turno.trim()
+            const carreraNum = parseInt(formData.id_carrera)
 
-                if (error) throw error
-            } else {
-                // Crear nuevo grupo
-                const { error } = await supabase
-                    .from('grupo')
-                    .insert({
-                        clave: claveTrimmed,
-                        turno: turnoTrimmed,
-                        id_carrera: carreraNum
-                    })
-
-                if (error) throw error
+            const grupoData = {
+                clave: claveTrimmed,
+                turno: turnoTrimmed,
+                id_carrera: carreraNum
             }
 
-            // Recargar datos
+            if (isEditing && editingGrupo) {
+                const updateCmd = new UpdateCommand(
+                    async (id: string | number, data: any) => await grupoService.update(id, data as any),
+                    async (id: string | number) => await grupoService.getById(id) as any,
+                    editingGrupo.id_grupo,
+                    grupoData
+                ) as any
+
+                const result = await commandInvoker.execute(updateCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al actualizar')
+                }
+            } else {
+                const createCmd = new CreateCommand(
+                    async (data: any) => await grupoService.create(data as any),
+                    async (id: string | number) => await grupoService.delete(id) as unknown as Promise<void>,
+                    grupoData as any
+                ) as any
+
+                const result = await commandInvoker.execute(createCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al crear')
+                }
+            }
+
             await fetchGrupos()
             await fetchCarreras()
-
-            // Limpiar formulario y cerrar sheet
             setFormData({ clave: '', turno: '', id_carrera: '' })
             setIsSheetOpen(false)
             setIsEditing(false)
             setEditingGrupo(null)
-
-            // Mostrar notificación de éxito
             toast.success(isEditing ? 'Grupo actualizado exitosamente' : 'Grupo creado exitosamente')
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar grupo:', error)
-            toast.error('Error al guardar el grupo. Inténtalo de nuevo.')
+            toast.error(error?.message || 'Error al guardar el grupo. Inténtalo de nuevo.')
         }
     }
 
     const fetchGrupos = async () => {
         try {
-            const { data, error } = await supabase
-                .from('grupo')
-                .select(`
-                    *,
-                    carrera:carrera(nombre)
-                `)
-
-            if (error) throw error
-            setGrupos(data || [])
+            const data = await grupoService.getGruposConRelaciones()
+            setGrupos(data)
         } catch (error) {
             console.error('Error al cargar grupos:', error)
+            toast.error('Error al cargar los grupos')
         }
     }
 
@@ -231,17 +235,23 @@ export default function GruposPage() {
     const handleDelete = async (id: number) => {
         if (confirm('¿Estás seguro de que quieres eliminar este grupo?')) {
             try {
-                const { error } = await supabase
-                    .from('grupo')
-                    .delete()
-                    .eq('id_grupo', id)
+                const deleteCmd = new DeleteCommand(
+                    async (id: string | number) => await grupoService.delete(id) as unknown as Promise<void>,
+                    async (data: any) => await grupoService.create(data as any),
+                    id,
+                    async (id: string | number) => await grupoService.getById(id) as any
+                ) as any
 
-                if (error) throw error
+                const result = await commandInvoker.execute(deleteCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al eliminar')
+                }
+
                 await fetchGrupos()
                 toast.success('Grupo eliminado exitosamente')
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al eliminar grupo:', error)
-                toast.error('Error al eliminar el grupo. Inténtalo de nuevo.')
+                toast.error(error?.message || 'Error al eliminar el grupo. Inténtalo de nuevo.')
             }
         }
     }
@@ -420,7 +430,7 @@ export default function GruposPage() {
                                     <NativeSelectOption value="Nocturno">Nocturno</NativeSelectOption>
                                     <NativeSelectOption value="Mixto">Mixto</NativeSelectOption>
                                 </NativeSelect>
-                                
+
                             </div>
                         </div>
                     </CardContent>

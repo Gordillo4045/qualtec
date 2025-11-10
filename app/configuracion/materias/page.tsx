@@ -50,6 +50,9 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
+import { MateriaService } from "@/lib/services/materia-service"
+import { ValidationChain } from "@/lib/validators/validation-chain"
+import { CommandInvoker, CreateCommand, UpdateCommand, DeleteCommand } from "@/lib/commands/command-pattern"
 
 export default function MateriasPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -72,6 +75,8 @@ export default function MateriasPage() {
     const [itemsPerPage] = useState(10)
 
     const supabase = createClient()
+    const [materiaService] = useState(() => new MateriaService(supabase))
+    const [commandInvoker] = useState(() => new CommandInvoker())
 
     useEffect(() => {
         fetchMaterias()
@@ -156,114 +161,107 @@ export default function MateriasPage() {
         return pages
     }
 
+    const validateForm = async () => {
+        const validaciones = [
+            { field: 'nombre', label: 'Nombre', value: formData.nombre, chain: new ValidationChain().required().minLength(3) },
+            { field: 'clave', label: 'Clave', value: formData.clave, chain: new ValidationChain().required().minLength(2) },
+            { field: 'id_departamento', label: 'Departamento', value: formData.id_departamento, chain: new ValidationChain().required() },
+        ]
+
+        for (const { field, label, value, chain } of validaciones) {
+            const result = await chain.validate(formData, field, value)
+            if (!result.isValid) {
+                toast.error(result.error || `El campo "${label}" es inválido`)
+                return false
+            }
+        }
+
+        const creditosNum = parseInt(formData.creditos)
+        if (!formData.creditos || isNaN(creditosNum) || creditosNum < 1 || creditosNum > 20) {
+            toast.error('Los créditos deben ser un número entre 1 y 20')
+            return false
+        }
+
+        const departamentoNum = parseInt(formData.id_departamento)
+        if (isNaN(departamentoNum)) {
+            toast.error('Debe seleccionar un departamento válido')
+            return false
+        }
+
+        return true
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Validar que tenemos el ID de la materia para edición
+        if (!(await validateForm())) {
+            return
+        }
+
         if (isEditing && !editingMateria?.id_materia) {
             toast.error('Error: No se pudo identificar la materia a editar')
             return
         }
 
-        // Validar campos requeridos
-        const nombreTrimmed = formData.nombre.trim()
-        const claveTrimmed = formData.clave.trim()
-
-        if (!nombreTrimmed) {
-            toast.error('El nombre de la materia es requerido')
-            return
-        }
-
-        if (!claveTrimmed) {
-            toast.error('La clave de la materia es requerida')
-            return
-        }
-
-        // Validar longitud mínima
-        if (nombreTrimmed.length < 3) {
-            toast.error('El nombre de la materia debe tener al menos 3 caracteres')
-            return
-        }
-
-        if (claveTrimmed.length < 2) {
-            toast.error('La clave de la materia debe tener al menos 2 caracteres')
-            return
-        }
-
-        // Validar créditos (debe ser un número positivo)
-        const creditosNum = parseInt(formData.creditos)
-        if (!formData.creditos || isNaN(creditosNum) || creditosNum < 1) {
-            toast.error('Los créditos deben ser un número entero positivo (mayor a 0)')
-            return
-        }
-
-        // Validar que el departamento sea un número válido
-        const departamentoNum = parseInt(formData.id_departamento)
-        if (!formData.id_departamento || isNaN(departamentoNum)) {
-            toast.error('Debe seleccionar un departamento válido')
-            return
-        }
-
         try {
-            if (isEditing) {
-                // Actualizar materia existente
-                const { error } = await supabase
-                    .from('materia')
-                    .update({
-                        nombre: nombreTrimmed,
-                        clave: claveTrimmed,
-                        creditos: creditosNum,
-                        id_departamento: departamentoNum
-                    })
-                    .eq('id_materia', editingMateria?.id_materia)
+            const nombreTrimmed = formData.nombre.trim()
+            const claveTrimmed = formData.clave.trim()
+            const creditosNum = parseInt(formData.creditos)
+            const departamentoNum = parseInt(formData.id_departamento)
 
-                if (error) throw error
-            } else {
-                // Crear nueva materia
-                const { error } = await supabase
-                    .from('materia')
-                    .insert({
-                        nombre: nombreTrimmed,
-                        clave: claveTrimmed,
-                        creditos: creditosNum,
-                        id_departamento: departamentoNum
-                    })
-
-                if (error) throw error
+            const materiaData = {
+                nombre: nombreTrimmed,
+                clave: claveTrimmed,
+                creditos: creditosNum,
+                id_departamento: departamentoNum
             }
 
-            // Recargar datos
+            if (isEditing && editingMateria) {
+                const updateCmd = new UpdateCommand(
+                    async (id: string | number, data: any) => await materiaService.update(id, data as any),
+                    async (id: string | number) => await materiaService.getById(id) as any,
+                    editingMateria.id_materia,
+                    materiaData
+                ) as any
+
+                const result = await commandInvoker.execute(updateCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al actualizar')
+                }
+            } else {
+                const createCmd = new CreateCommand(
+                    async (data: any) => await materiaService.create(data as any),
+                    async (id: string | number) => await materiaService.delete(id) as unknown as Promise<void>,
+                    materiaData as any
+                ) as any
+
+                const result = await commandInvoker.execute(createCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al crear')
+                }
+            }
+
             await fetchMaterias()
             await fetchDepartamentos()
-
-            // Limpiar formulario y cerrar sheet
             setFormData({ nombre: '', clave: '', creditos: '', id_departamento: '' })
             setIsSheetOpen(false)
             setIsEditing(false)
             setEditingMateria(null)
-
-            // Mostrar notificación de éxito
             toast.success(isEditing ? 'Materia actualizada exitosamente' : 'Materia creada exitosamente')
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar materia:', error)
-            toast.error('Error al guardar la materia. Inténtalo de nuevo.')
+            toast.error(error?.message || 'Error al guardar la materia. Inténtalo de nuevo.')
         }
     }
 
     const fetchMaterias = async () => {
         try {
-            const { data, error } = await supabase
-                .from('materia')
-                .select(`
-                    *,
-                    departamento:departamento(nombre)
-                `)
-
-            if (error) throw error
-            setMaterias(data || [])
+            const data = await materiaService.getMateriasConRelaciones()
+            setMaterias(data)
         } catch (error) {
             console.error('Error al cargar materias:', error)
+            toast.error('Error al cargar las materias')
         }
     }
 
@@ -296,17 +294,23 @@ export default function MateriasPage() {
     const handleDelete = async (id: number) => {
         if (confirm('¿Estás seguro de que quieres eliminar esta materia?')) {
             try {
-                const { error } = await supabase
-                    .from('materia')
-                    .delete()
-                    .eq('id_materia', id)
+                const deleteCmd = new DeleteCommand(
+                    async (id: string | number) => await materiaService.delete(id) as unknown as Promise<void>,
+                    async (data: any) => await materiaService.create(data as any),
+                    id,
+                    async (id) => await materiaService.getById(id)
+                ) as any
 
-                if (error) throw error
+                const result = await commandInvoker.execute(deleteCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al eliminar')
+                }
+
                 await fetchMaterias()
                 toast.success('Materia eliminada exitosamente')
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al eliminar materia:', error)
-                toast.error('Error al eliminar la materia. Inténtalo de nuevo.')
+                toast.error(error?.message || 'Error al eliminar la materia. Inténtalo de nuevo.')
             }
         }
     }

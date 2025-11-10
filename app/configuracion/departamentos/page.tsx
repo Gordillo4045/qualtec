@@ -50,6 +50,9 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
+import { DepartamentoService } from "@/lib/services/departamento-service"
+import { ValidationChain } from "@/lib/validators/validation-chain"
+import { CommandInvoker, CreateCommand, UpdateCommand, DeleteCommand } from "@/lib/commands/command-pattern"
 
 export default function DepartamentosPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -63,6 +66,8 @@ export default function DepartamentosPage() {
     const [searchTerm, setSearchTerm] = useState('')
 
     const supabase = createClient()
+    const [departamentoService] = useState(() => new DepartamentoService(supabase))
+    const [commandInvoker] = useState(() => new CommandInvoker())
 
     useEffect(() => {
         fetchDepartamentos()
@@ -85,83 +90,80 @@ export default function DepartamentosPage() {
         setFilteredDepartamentos(filtered)
     }
 
+    const validateForm = async () => {
+        const validator = new ValidationChain()
+            .required()
+            .minLength(3)
+
+        const result = await validator.validate(formData, 'nombre', formData.nombre)
+        if (!result.isValid) {
+            toast.error(result.error || 'El nombre del departamento es inválido')
+            return false
+        }
+        return true
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Validar que tenemos el ID del departamento para edición
+        if (!(await validateForm())) {
+            return
+        }
+
         if (isEditing && !editingDepartamento?.id_departamento) {
             toast.error('Error: No se pudo identificar el departamento a editar')
             return
         }
 
-        // Validar que el nombre no esté vacío o solo espacios
-        const nombreTrimmed = formData.nombre.trim()
-        if (!nombreTrimmed) {
-            toast.error('El nombre del departamento es requerido y no puede estar vacío')
-            return
-        }
-
-        // Validar longitud mínima del nombre
-        if (nombreTrimmed.length < 3) {
-            toast.error('El nombre del departamento debe tener al menos 3 caracteres')
-            return
-        }
-
         try {
-            if (isEditing) {
-                // Actualizar departamento existente
-                const { error } = await supabase
-                    .from('departamento')
-                    .update({
-                        nombre: nombreTrimmed
-                    })
-                    .eq('id_departamento', editingDepartamento?.id_departamento)
+            const nombreTrimmed = formData.nombre.trim()
+            const departamentoData = { nombre: nombreTrimmed }
 
-                if (error) throw error
+            if (isEditing && editingDepartamento) {
+                const updateCmd = new UpdateCommand(
+                    async (id, data) => await departamentoService.update(id, data),
+                    async (id) => await departamentoService.getById(id),
+                    editingDepartamento.id_departamento,
+                    departamentoData
+                )
+
+                const result = await commandInvoker.execute(updateCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al actualizar')
+                }
             } else {
-                // Crear nuevo departamento
-                const { error } = await supabase
-                    .from('departamento')
-                    .insert({
-                        nombre: nombreTrimmed
-                    })
+                const createCmd = new CreateCommand(
+                    async (data) => await departamentoService.create(data),
+                    async (id: string | number) => await departamentoService.delete(id) as unknown as Promise<void>,
+                    departamentoData
+                )
 
-                if (error) throw error
+                const result = await commandInvoker.execute(createCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al crear')
+                }
             }
 
-            // Recargar datos
             await fetchDepartamentos()
-
-            // Limpiar formulario y cerrar sheet
             setFormData({ nombre: '' })
             setIsSheetOpen(false)
             setIsEditing(false)
             setEditingDepartamento(null)
-
-            // Mostrar notificación de éxito
             toast.success(isEditing ? 'Departamento actualizado exitosamente' : 'Departamento creado exitosamente')
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar departamento:', error)
-            toast.error('Error al guardar el departamento. Inténtalo de nuevo.')
+            toast.error(error?.message || 'Error al guardar el departamento. Inténtalo de nuevo.')
         }
     }
 
     const fetchDepartamentos = async () => {
         try {
-            const { data, error } = await supabase
-                .from('departamento')
-                .select(`
-                    *,
-                    carreras:carrera(count),
-                    materias:materia(count)
-                `)
-                .order('nombre')
-
-            if (error) throw error
-            setDepartamentos(data || [])
+            const data = await departamentoService.getAll()
+            setDepartamentos(data)
         } catch (error) {
             console.error('Error al cargar departamentos:', error)
+            toast.error('Error al cargar los departamentos')
         }
     }
 
@@ -177,17 +179,23 @@ export default function DepartamentosPage() {
     const handleDelete = async (id: number) => {
         if (confirm('¿Estás seguro de que quieres eliminar este departamento?')) {
             try {
-                const { error } = await supabase
-                    .from('departamento')
-                    .delete()
-                    .eq('id_departamento', id)
+                const deleteCmd = new DeleteCommand(
+                    async (id: string | number) => await departamentoService.delete(id) as unknown as Promise<void>,
+                    async (data) => await departamentoService.create(data),
+                    id,
+                    async (id: string | number) => await departamentoService.getById(id) as any
+                )
 
-                if (error) throw error
+                const result = await commandInvoker.execute(deleteCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al eliminar')
+                }
+
                 await fetchDepartamentos()
                 toast.success('Departamento eliminado exitosamente')
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al eliminar departamento:', error)
-                toast.error('Error al eliminar el departamento. Inténtalo de nuevo.')
+                toast.error(error?.message || 'Error al eliminar el departamento. Inténtalo de nuevo.')
             }
         }
     }

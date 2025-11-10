@@ -48,6 +48,9 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
+import { CarreraService } from "@/lib/services/carrera-service"
+import { ValidationChain } from "@/lib/validators/validation-chain"
+import { CommandInvoker, CreateCommand, UpdateCommand, DeleteCommand } from "@/lib/commands/command-pattern"
 
 export default function CarrerasPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -65,6 +68,8 @@ export default function CarrerasPage() {
     const [selectedDepartamento, setSelectedDepartamento] = useState('')
 
     const supabase = createClient()
+    const [carreraService] = useState(() => new CarreraService(supabase))
+    const [commandInvoker] = useState(() => new CommandInvoker())
 
     useEffect(() => {
         fetchCarreras()
@@ -97,106 +102,99 @@ export default function CarrerasPage() {
         setFilteredCarreras(filtered)
     }
 
+    const validateForm = async () => {
+        const validaciones = [
+            { field: 'nombre', label: 'Nombre', value: formData.nombre, chain: new ValidationChain().required().minLength(3) },
+            { field: 'clave', label: 'Clave', value: formData.clave, chain: new ValidationChain().required().minLength(2) },
+            { field: 'id_departamento', label: 'Departamento', value: formData.id_departamento, chain: new ValidationChain().required() },
+        ]
+
+        for (const { field, label, value, chain } of validaciones) {
+            const result = await chain.validate(formData, field, value)
+            if (!result.isValid) {
+                toast.error(result.error || `El campo "${label}" es inválido`)
+                return false
+            }
+        }
+
+        const departamentoNum = parseInt(formData.id_departamento)
+        if (isNaN(departamentoNum)) {
+            toast.error('Debe seleccionar un departamento válido')
+            return false
+        }
+
+        return true
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Validar que tenemos el ID de la carrera para edición
+        if (!(await validateForm())) {
+            return
+        }
+
         if (isEditing && !editingCarrera?.id_carrera) {
             toast.error('Error: No se pudo identificar la carrera a editar')
             return
         }
 
-        // Validar campos requeridos
-        const nombreTrimmed = formData.nombre.trim()
-        const claveTrimmed = formData.clave.trim()
-
-        if (!nombreTrimmed) {
-            toast.error('El nombre de la carrera es requerido')
-            return
-        }
-
-        if (!claveTrimmed) {
-            toast.error('La clave de la carrera es requerida')
-            return
-        }
-
-        // Validar longitud mínima
-        if (nombreTrimmed.length < 3) {
-            toast.error('El nombre de la carrera debe tener al menos 3 caracteres')
-            return
-        }
-
-        if (claveTrimmed.length < 2) {
-            toast.error('La clave de la carrera debe tener al menos 2 caracteres')
-            return
-        }
-
-        // Validar que el departamento sea un número válido
-        const departamentoNum = parseInt(formData.id_departamento)
-        if (!formData.id_departamento || isNaN(departamentoNum)) {
-            toast.error('Debe seleccionar un departamento válido')
-            return
-        }
-
         try {
-            if (isEditing) {
-                // Actualizar carrera existente
-                const { error } = await supabase
-                    .from('carrera')
-                    .update({
-                        nombre: nombreTrimmed,
-                        clave: claveTrimmed,
-                        id_departamento: departamentoNum
-                    })
-                    .eq('id_carrera', editingCarrera?.id_carrera)
+            const nombreTrimmed = formData.nombre.trim()
+            const claveTrimmed = formData.clave.trim()
+            const departamentoNum = parseInt(formData.id_departamento)
 
-                if (error) throw error
-            } else {
-                // Crear nueva carrera
-                const { error } = await supabase
-                    .from('carrera')
-                    .insert({
-                        nombre: nombreTrimmed,
-                        clave: claveTrimmed,
-                        id_departamento: departamentoNum
-                    })
-
-                if (error) throw error
+            const carreraData = {
+                nombre: nombreTrimmed,
+                clave: claveTrimmed,
+                id_departamento: departamentoNum
             }
 
-            // Recargar datos
+            if (isEditing && editingCarrera) {
+                const updateCmd = new UpdateCommand(
+                    async (id: string | number, data: any) => await carreraService.update(id, data as any),
+                    async (id) => await carreraService.getById(id),
+                    editingCarrera.id_carrera,
+                    carreraData
+                )
+
+                const result = await commandInvoker.execute(updateCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al actualizar')
+                }
+            } else {
+                const createCmd = new CreateCommand(
+                    async (data: any) => await carreraService.create(data as any),
+                    async (id: string | number) => await carreraService.delete(id) as unknown as Promise<void>,
+                    carreraData
+                ) as any
+
+                const result = await commandInvoker.execute(createCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al crear')
+                }
+            }
+
             await fetchCarreras()
             await fetchDepartamentos()
-
-            // Limpiar formulario y cerrar sheet
             setFormData({ nombre: '', clave: '', id_departamento: '' })
             setIsSheetOpen(false)
             setIsEditing(false)
             setEditingCarrera(null)
-
-            // Mostrar notificación de éxito
             toast.success(isEditing ? 'Carrera actualizada exitosamente' : 'Carrera creada exitosamente')
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar carrera:', error)
-            toast.error('Error al guardar la carrera. Inténtalo de nuevo.')
+            toast.error(error?.message || 'Error al guardar la carrera. Inténtalo de nuevo.')
         }
     }
 
     const fetchCarreras = async () => {
         try {
-            const { data, error } = await supabase
-                .from('carrera')
-                .select(`
-                    *,
-                    departamento:departamento(nombre),
-                    estudiantes:estudiante(count)
-                `)
-
-            if (error) throw error
-            setCarreras(data || [])
+            const data = await carreraService.getCarrerasConRelaciones()
+            setCarreras(data)
         } catch (error) {
             console.error('Error al cargar carreras:', error)
+            toast.error('Error al cargar las carreras')
         }
     }
 
@@ -228,17 +226,23 @@ export default function CarrerasPage() {
     const handleDelete = async (id: number) => {
         if (confirm('¿Estás seguro de que quieres eliminar esta carrera?')) {
             try {
-                const { error } = await supabase
-                    .from('carrera')
-                    .delete()
-                    .eq('id_carrera', id)
+                const deleteCmd = new DeleteCommand(
+                    async (id: string | number) => await carreraService.delete(id) as unknown as Promise<void>,
+                    async (data: any) => await carreraService.create(data as any),
+                    id,
+                    async (id: string | number) => await carreraService.getById(id) as any
+                ) as any
 
-                if (error) throw error
+                const result = await commandInvoker.execute(deleteCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al eliminar')
+                }
+
                 await fetchCarreras()
                 toast.success('Carrera eliminada exitosamente')
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al eliminar carrera:', error)
-                toast.error('Error al eliminar la carrera. Inténtalo de nuevo.')
+                toast.error(error?.message || 'Error al eliminar la carrera. Inténtalo de nuevo.')
             }
         }
     }

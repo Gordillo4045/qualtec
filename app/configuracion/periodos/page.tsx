@@ -53,6 +53,9 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
+import { PeriodoService } from "@/lib/services/periodo-service"
+import { ValidationChain } from "@/lib/validators/validation-chain"
+import { CommandInvoker, CreateCommand, UpdateCommand, DeleteCommand } from "@/lib/commands/command-pattern"
 
 export default function PeriodosPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -96,6 +99,8 @@ export default function PeriodosPage() {
     const [selectedAnio, setSelectedAnio] = useState('')
 
     const supabase = createClient()
+    const [periodoService] = useState(() => new PeriodoService(supabase))
+    const [commandInvoker] = useState(() => new CommandInvoker())
 
     useEffect(() => {
         fetchPeriodos()
@@ -126,85 +131,98 @@ export default function PeriodosPage() {
         setFilteredPeriodos(filtered)
     }
 
+    const validateForm = async () => {
+        if (!formData.anio || formData.anio === '') {
+            toast.error('Por favor selecciona un año')
+            return false
+        }
+
+        const anioNum = parseInt(formData.anio)
+        if (isNaN(anioNum)) {
+            toast.error('El año debe ser un número válido')
+            return false
+        }
+        const anioValidator = new ValidationChain().range(2000, 2100)
+        const anioResult = await anioValidator.validate(formData, 'anio', anioNum)
+        if (!anioResult.isValid) {
+            toast.error(anioResult.error || 'El año debe estar entre 2000 y 2100')
+            return false
+        }
+
+        const etiquetaValidator = new ValidationChain().required().minLength(2)
+        const etiquetaResult = await etiquetaValidator.validate(formData, 'etiqueta', formData.etiqueta)
+        if (!etiquetaResult.isValid) {
+            toast.error(etiquetaResult.error || 'La etiqueta es inválida')
+            return false
+        }
+
+        if (!inicioDate || !finDate) {
+            toast.error('Por favor selecciona las fechas de inicio y fin')
+            return false
+        }
+
+        if (!isValidDate(inicioDate) || !isValidDate(finDate)) {
+            toast.error('Las fechas seleccionadas no son válidas')
+            return false
+        }
+
+        if (finDate <= inicioDate) {
+            toast.error('La fecha de fin debe ser posterior a la fecha de inicio')
+            return false
+        }
+
+        return true
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Validar que el año esté seleccionado
-        if (!formData.anio || formData.anio === '') {
-            toast.error('Por favor selecciona un año')
+        if (!(await validateForm())) {
             return
         }
 
-        // Validar que el año sea un número válido
-        const anioNum = parseInt(formData.anio)
-        if (isNaN(anioNum) || anioNum < 2000 || anioNum > 2100) {
-            toast.error('El año debe ser un número válido entre 2000 y 2100')
-            return
-        }
-
-        // Validar que las fechas estén seleccionadas
-        if (!inicioDate || !finDate) {
-            toast.error('Por favor selecciona las fechas de inicio y fin')
-            return
-        }
-
-        // Validar que las fechas sean válidas
-        if (!isValidDate(inicioDate) || !isValidDate(finDate)) {
-            toast.error('Las fechas seleccionadas no son válidas')
-            return
-        }
-
-        // Validar que la fecha de fin sea posterior a la fecha de inicio
-        if (finDate <= inicioDate) {
-            toast.error('La fecha de fin debe ser posterior a la fecha de inicio')
-            return
-        }
-
-        // Validar que la etiqueta no esté vacía o solo espacios
-        const etiquetaTrimmed = formData.etiqueta.trim()
-        if (!etiquetaTrimmed) {
-            toast.error('La etiqueta del periodo es requerida')
-            return
-        }
-
-        // Validar que tenemos el ID del periodo para edición
         if (isEditing && !editingPeriodo?.id_periodo) {
             toast.error('Error: No se pudo identificar el periodo a editar')
             return
         }
 
         try {
-            if (isEditing) {
-                // Actualizar periodo existente
-                const { error } = await supabase
-                    .from('periodo')
-                    .update({
-                        anio: anioNum,
-                        etiqueta: etiquetaTrimmed,
-                        inicio: inicioDate.toISOString().split('T')[0],
-                        fin: finDate.toISOString().split('T')[0]
-                    })
-                    .eq('id_periodo', editingPeriodo?.id_periodo)
+            const anioNum = parseInt(formData.anio)
+            const etiquetaTrimmed = formData.etiqueta.trim()
 
-                if (error) throw error
-            } else {
-                // Crear nuevo periodo
-                const { error } = await supabase
-                    .from('periodo')
-                    .insert({
-                        anio: anioNum,
-                        etiqueta: etiquetaTrimmed,
-                        inicio: inicioDate.toISOString().split('T')[0],
-                        fin: finDate.toISOString().split('T')[0]
-                    })
-
-                if (error) throw error
+            const periodoData = {
+                anio: anioNum,
+                etiqueta: etiquetaTrimmed,
+                inicio: inicioDate!.toISOString().split('T')[0],
+                fin: finDate!.toISOString().split('T')[0]
             }
 
-            // Recargar datos
-            await fetchPeriodos()
+            if (isEditing && editingPeriodo) {
+                const updateCmd = new UpdateCommand(
+                    async (id: string | number, data: any) => await periodoService.update(id, data as any),
+                    async (id: string | number) => await periodoService.getById(id) as any,
+                    editingPeriodo.id_periodo,
+                    periodoData
+                ) as any
 
-            // Limpiar formulario y cerrar sheet
+                const result = await commandInvoker.execute(updateCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al actualizar')
+                }
+            } else {
+                const createCmd = new CreateCommand(
+                    async (data: any) => await periodoService.create(data as any),
+                    async (id: string | number) => await periodoService.delete(id) as unknown as Promise<void>,
+                    periodoData as any
+                ) as any
+
+                const result = await commandInvoker.execute(createCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al crear')
+                }
+            }
+
+            await fetchPeriodos()
             setFormData({ anio: new Date().getFullYear().toString(), etiqueta: '', inicio: '', fin: '' })
             setInicioDate(undefined)
             setFinDate(undefined)
@@ -215,27 +233,21 @@ export default function PeriodosPage() {
             setIsSheetOpen(false)
             setIsEditing(false)
             setEditingPeriodo(null)
-
-            // Mostrar notificación de éxito
             toast.success(isEditing ? 'Periodo actualizado exitosamente' : 'Periodo creado exitosamente')
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar periodo:', error)
-            toast.error('Error al guardar el periodo. Inténtalo de nuevo.')
+            toast.error(error?.message || 'Error al guardar el periodo. Inténtalo de nuevo.')
         }
     }
 
     const fetchPeriodos = async () => {
         try {
-            const { data, error } = await supabase
-                .from('periodo')
-                .select('*')
-                .order('anio', { ascending: false })
-
-            if (error) throw error
-            setPeriodos(data || [])
+            const data = await periodoService.getAll()
+            setPeriodos(data.sort((a, b) => b.anio - a.anio))
         } catch (error) {
             console.error('Error al cargar periodos:', error)
+            toast.error('Error al cargar los periodos')
         }
     }
 
@@ -262,17 +274,23 @@ export default function PeriodosPage() {
     const handleDelete = async (id: number) => {
         if (confirm('¿Estás seguro de que quieres eliminar este periodo?')) {
             try {
-                const { error } = await supabase
-                    .from('periodo')
-                    .delete()
-                    .eq('id_periodo', id)
+                const deleteCmd = new DeleteCommand(
+                    async (id: string | number) => await periodoService.delete(id) as unknown as Promise<void>,
+                    async (data: any) => await periodoService.create(data as any),
+                    id,
+                    async (id: string | number) => await periodoService.getById(id) as any
+                ) as any
 
-                if (error) throw error
+                const result = await commandInvoker.execute(deleteCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al eliminar')
+                }
+
                 await fetchPeriodos()
                 toast.success('Periodo eliminado exitosamente')
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al eliminar periodo:', error)
-                toast.error('Error al eliminar el periodo. Inténtalo de nuevo.')
+                toast.error(error?.message || 'Error al eliminar el periodo. Inténtalo de nuevo.')
             }
         }
     }

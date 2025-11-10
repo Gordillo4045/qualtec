@@ -48,6 +48,9 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import * as XLSX from 'xlsx'
+import { ModalidadService } from "@/lib/services/modalidad-service"
+import { ValidationChain } from "@/lib/validators/validation-chain"
+import { CommandInvoker, CreateCommand, UpdateCommand, DeleteCommand } from "@/lib/commands/command-pattern"
 
 export default function ModalidadesPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -62,6 +65,8 @@ export default function ModalidadesPage() {
     const [searchTerm, setSearchTerm] = useState('')
 
     const supabase = createClient()
+    const [modalidadService] = useState(() => new ModalidadService(supabase))
+    const [commandInvoker] = useState(() => new CommandInvoker())
 
     useEffect(() => {
         fetchModalidades()
@@ -84,73 +89,75 @@ export default function ModalidadesPage() {
         setFilteredModalidades(filtered)
     }
 
+    const validateForm = async () => {
+        const validator = new ValidationChain()
+            .required()
+            .minLength(3)
+
+        const result = await validator.validate(formData, 'nombre', formData.nombre)
+        if (!result.isValid) {
+            toast.error(result.error || 'El nombre de la modalidad es inválido')
+            return false
+        }
+        return true
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Validar campos requeridos
-        const nombreTrimmed = formData.nombre.trim()
-        if (!nombreTrimmed) {
-            toast.error('El nombre de la modalidad es requerido y no puede estar vacío')
-            return
-        }
-
-        // Validar longitud mínima
-        if (nombreTrimmed.length < 3) {
-            toast.error('El nombre de la modalidad debe tener al menos 3 caracteres')
+        if (!(await validateForm())) {
             return
         }
 
         try {
-            if (isEditing) {
-                // Actualizar modalidad existente
-                const { error } = await supabase
-                    .from('modalidad')
-                    .update({
-                        nombre: nombreTrimmed
-                    })
-                    .eq('id_modalidad', editingModalidad?.id_modalidad)
+            const nombreTrimmed = formData.nombre.trim()
+            const modalidadData = { nombre: nombreTrimmed }
 
-                if (error) throw error
+            if (isEditing && editingModalidad) {
+                const updateCmd = new UpdateCommand(
+                    async (id, data) => await modalidadService.update(id, data),
+                    async (id) => await modalidadService.getById(id),
+                    editingModalidad.id_modalidad,
+                    modalidadData
+                )
+
+                const result = await commandInvoker.execute(updateCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al actualizar')
+                }
             } else {
-                // Crear nueva modalidad
-                const { error } = await supabase
-                    .from('modalidad')
-                    .insert({
-                        nombre: nombreTrimmed
-                    })
+                const createCmd = new CreateCommand(
+                    async (data) => await modalidadService.create(data),
+                    async (id: string | number) => await modalidadService.delete(id) as unknown as Promise<void>,
+                    modalidadData as any
+                ) as any
 
-                if (error) throw error
+                const result = await commandInvoker.execute(createCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al crear')
+                }
             }
 
-            // Recargar datos
             await fetchModalidades()
-
-            // Limpiar formulario y cerrar sheet
             setFormData({ nombre: '' })
             setIsSheetOpen(false)
             setIsEditing(false)
             setEditingModalidad(null)
-
-            // Mostrar notificación de éxito
             toast.success(isEditing ? 'Modalidad actualizada exitosamente' : 'Modalidad creada exitosamente')
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar modalidad:', error)
-            toast.error('Error al guardar la modalidad. Inténtalo de nuevo.')
+            toast.error(error?.message || 'Error al guardar la modalidad. Inténtalo de nuevo.')
         }
     }
 
     const fetchModalidades = async () => {
         try {
-            const { data, error } = await supabase
-                .from('modalidad')
-                .select('*')
-                .order('nombre', { ascending: true })
-
-            if (error) throw error
-            setModalidades(data || [])
+            const data = await modalidadService.getAll()
+            setModalidades(data)
         } catch (error) {
             console.error('Error al cargar modalidades:', error)
+            toast.error('Error al cargar las modalidades')
         }
     }
 
@@ -166,17 +173,23 @@ export default function ModalidadesPage() {
     const handleDelete = async (id: number) => {
         if (confirm('¿Estás seguro de que quieres eliminar esta modalidad?')) {
             try {
-                const { error } = await supabase
-                    .from('modalidad')
-                    .delete()
-                    .eq('id_modalidad', id)
+                const deleteCmd = new DeleteCommand(
+                    async (id: string | number) => await modalidadService.delete(id) as unknown as Promise<void>,
+                    async (data: any) => await modalidadService.create(data as any),
+                    id,
+                    async (id: string | number) => await modalidadService.getById(id) as any
+                ) as any
 
-                if (error) throw error
+                const result = await commandInvoker.execute(deleteCmd)
+                if (!result.success) {
+                    throw result.error || new Error('Error al eliminar')
+                }
+
                 await fetchModalidades()
                 toast.success('Modalidad eliminada exitosamente')
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al eliminar modalidad:', error)
-                toast.error('Error al eliminar la modalidad. Inténtalo de nuevo.')
+                toast.error(error?.message || 'Error al eliminar la modalidad. Inténtalo de nuevo.')
             }
         }
     }
