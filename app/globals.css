@@ -165,7 +165,23 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.high-contrast {
+  filter: contrast(150%) brightness(110%);
+}
+
+.highlight-links a {
+  background-color: yellow !important;
+  padding: 2px 4px !important;
+  border-radius: 2px !important;
+  text-decoration: underline !important;
+}
+
+.dyslexia-font {
+  font-family: 'Comic Sans MS', 'Arial', sans-serif !important;
 }
