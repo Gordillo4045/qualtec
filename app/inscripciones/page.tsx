@@ -7,6 +7,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Field } from "@/components/ui/field"
+import { FieldHelp } from "@/components/ui/field-help"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import {
     Table,
@@ -1051,12 +1052,26 @@ export default function InscripcionesPage() {
                                         {isEditing ? 'Modifica los datos de la inscripción' : 'Agrega una nueva inscripción al sistema'}
                                     </SheetDescription>
                                 </SheetHeader>
-                                <form onSubmit={handleSubmit} className="mt-6 pr-2 space-y-6">
+                                <form onSubmit={handleSubmit} className="mt-6 pr-2 space-y-6" aria-label={isEditing ? 'Formulario para editar inscripción' : 'Formulario para crear nueva inscripción'}>
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field>
-                                            <Label htmlFor="id_estudiante">Estudiante *</Label>
-                                            <Select value={formData.id_estudiante} onValueChange={(value) => setFormData({ ...formData, id_estudiante: value })}>
-                                                <SelectTrigger>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="id_estudiante" required>Estudiante</Label>
+                                                <FieldHelp
+                                                    description="Estudiante que se inscribirá a la materia. Selecciona de la lista de estudiantes activos."
+                                                    id="help-estudiante-inscripcion"
+                                                />
+                                            </div>
+                                            <Select 
+                                                value={formData.id_estudiante} 
+                                                onValueChange={(value) => setFormData({ ...formData, id_estudiante: value })}
+                                            >
+                                                <SelectTrigger 
+                                                    id="id_estudiante" 
+                                                    aria-label="Estudiante a inscribir" 
+                                                    aria-describedby="help-estudiante-inscripcion"
+                                                    aria-required="true"
+                                                >
                                                     <SelectValue placeholder="Seleccionar estudiante" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -1069,13 +1084,25 @@ export default function InscripcionesPage() {
                                             </Select>
                                         </Field>
                                         <Field>
-                                            <Label htmlFor="id_oferta">Oferta *</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="id_oferta" required>Oferta</Label>
+                                                <FieldHelp
+                                                    description="Oferta académica que incluye materia, período y grupo. Solo disponible después de seleccionar un estudiante."
+                                                    id="help-oferta-inscripcion"
+                                                />
+                                            </div>
                                             <Select
                                                 value={formData.id_oferta}
                                                 onValueChange={(value) => setFormData({ ...formData, id_oferta: value })}
                                                 disabled={!formData.id_estudiante}
                                             >
-                                                <SelectTrigger>
+                                                <SelectTrigger 
+                                                    id="id_oferta" 
+                                                    aria-label="Oferta académica" 
+                                                    aria-describedby="help-oferta-inscripcion"
+                                                    aria-required="true"
+                                                    aria-disabled={!formData.id_estudiante}
+                                                >
                                                     <SelectValue placeholder={!formData.id_estudiante ? "Primero selecciona un estudiante" : "Seleccionar oferta"} />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -1091,10 +1118,18 @@ export default function InscripcionesPage() {
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field>
-                                            <Label htmlFor="intentos">Intentos</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="intentos">Intentos</Label>
+                                                <FieldHelp 
+                                                    description="Número de veces que el estudiante ha cursado esta materia. Útil para identificar estudiantes que repiten materias."
+                                                    id="help-intentos-inscripcion"
+                                                />
+                                            </div>
                                             <Input
                                                 id="intentos"
                                                 type="number"
+                                                aria-label="Número de intentos"
+                                                aria-describedby="help-intentos-inscripcion"
                                                 min="1"
                                                 value={formData.intentos}
                                                 onChange={(e) => setFormData({ ...formData, intentos: e.target.value })}
@@ -1133,9 +1168,18 @@ export default function InscripcionesPage() {
 
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                     <Field>
-                                                                        <Label>Calificación (0-100)</Label>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Label htmlFor={`calificacion-${unidad.id_materia_unidad}`}>Calificación (0-100)</Label>
+                                                                            <FieldHelp 
+                                                                                description={`Calificación obtenida en la unidad "${unidad.nombre_unidad}". Valor entre 0 y 100.`}
+                                                                                id={`help-calificacion-${unidad.id_materia_unidad}`}
+                                                                            />
+                                                                        </div>
                                                                         <Input
+                                                                            id={`calificacion-${unidad.id_materia_unidad}`}
                                                                             type="number"
+                                                                            aria-label={`Calificación de ${unidad.nombre_unidad}`}
+                                                                            aria-describedby={`help-calificacion-${unidad.id_materia_unidad}`}
                                                                             min="0"
                                                                             max="100"
                                                                             step="1"
@@ -1145,12 +1189,22 @@ export default function InscripcionesPage() {
                                                                         />
                                                                     </Field>
                                                                     <Field>
-                                                                        <Label>Asistió</Label>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Label htmlFor={`asistio-${unidad.id_materia_unidad}`}>Asistió</Label>
+                                                                            <FieldHelp 
+                                                                                description={`Indica si el estudiante asistió a la unidad "${unidad.nombre_unidad}".`}
+                                                                                id={`help-asistio-${unidad.id_materia_unidad}`}
+                                                                            />
+                                                                        </div>
                                                                         <Select
                                                                             value={unidadData.asistio === null || unidadData.asistio === undefined ? '' : String(unidadData.asistio)}
                                                                             onValueChange={(value) => handleUnidadChange(unidad.id_materia_unidad, 'asistio', value === 'true')}
                                                                         >
-                                                                            <SelectTrigger>
+                                                                            <SelectTrigger 
+                                                                                id={`asistio-${unidad.id_materia_unidad}`}
+                                                                                aria-label={`Asistencia a ${unidad.nombre_unidad}`}
+                                                                                aria-describedby={`help-asistio-${unidad.id_materia_unidad}`}
+                                                                            >
                                                                                 <SelectValue placeholder="Seleccionar" />
                                                                             </SelectTrigger>
                                                                             <SelectContent>
@@ -1167,6 +1221,12 @@ export default function InscripcionesPage() {
                                             </div>
                                         </div>
                                     )}
+
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
+                                    </div>
 
                                     <div className="flex max-w-1/2 gap-2 pt-4">
                                         <Button type="submit" className="flex-1">

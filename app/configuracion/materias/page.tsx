@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { FieldHelp } from "@/components/ui/field-help"
 import {
     Table,
     TableBody,
@@ -381,11 +382,20 @@ export default function MateriasPage() {
                                         {isEditing ? 'Modifica los datos de la materia' : 'Agrega una nueva materia al sistema'}
                                     </SheetDescription>
                                 </SheetHeader>
-                                <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+                                <form onSubmit={handleSubmit} className="space-y-4 mt-6" aria-label={isEditing ? 'Formulario para editar materia' : 'Formulario para crear nueva materia'}>
                                     <div className="space-y-2">
-                                        <Label htmlFor="nombre">Nombre de la Materia</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="nombre" required>Nombre de la Materia</Label>
+                                            <FieldHelp
+                                                description="Nombre completo de la materia académica. Ejemplo: Cálculo Diferencial, Programación Orientada a Objetos, etc."
+                                                id="help-nombre-materia"
+                                            />
+                                        </div>
                                         <Input
                                             id="nombre"
+                                            aria-label="Nombre de la materia"
+                                            aria-describedby="help-nombre-materia"
+                                            aria-required="true"
                                             value={formData.nombre}
                                             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                                             placeholder="Cálculo Diferencial"
@@ -393,9 +403,18 @@ export default function MateriasPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="clave">Clave</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="clave" required>Clave</Label>
+                                            <FieldHelp
+                                                description="Código único de identificación de la materia. Ejemplo: CAL-001, PRO-101, etc."
+                                                id="help-clave-materia"
+                                            />
+                                        </div>
                                         <Input
                                             id="clave"
+                                            aria-label="Clave de la materia"
+                                            aria-describedby="help-clave-materia"
+                                            aria-required="true"
                                             value={formData.clave}
                                             onChange={(e) => setFormData({ ...formData, clave: e.target.value })}
                                             placeholder="CAL-001"
@@ -403,10 +422,21 @@ export default function MateriasPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="creditos">Créditos</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="creditos" required>Créditos</Label>
+                                            <FieldHelp
+                                                description="Número de créditos académicos que vale la materia. Generalmente entre 3 y 8 créditos."
+                                                id="help-creditos-materia"
+                                            />
+                                        </div>
                                         <Input
                                             id="creditos"
                                             type="number"
+                                            aria-label="Créditos de la materia"
+                                            aria-describedby="help-creditos-materia"
+                                            aria-required="true"
+                                            min="1"
+                                            max="10"
                                             value={formData.creditos}
                                             onChange={(e) => setFormData({ ...formData, creditos: e.target.value })}
                                             placeholder="4"
@@ -414,9 +444,18 @@ export default function MateriasPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="departamento">Departamento</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="departamento" required>Departamento</Label>
+                                            <FieldHelp
+                                                description="Departamento académico responsable de la materia."
+                                                id="help-departamento-materia"
+                                            />
+                                        </div>
                                         <select
                                             id="departamento"
+                                            aria-label="Departamento de la materia"
+                                            aria-describedby="help-departamento-materia"
+                                            aria-required="true"
                                             value={formData.id_departamento}
                                             onChange={(e) => setFormData({ ...formData, id_departamento: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -429,6 +468,11 @@ export default function MateriasPage() {
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
                                     </div>
                                     <div className="flex gap-2 pt-4">
                                         <Button type="submit" className="flex-1">

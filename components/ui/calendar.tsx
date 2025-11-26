@@ -37,8 +37,24 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString("es-ES", { month: "long" }),
+        formatYearDropdown: (date) =>
+          date.toLocaleString("es-ES", { year: "numeric" }),
+        formatWeekdayName: (date) => {
+          const weekday = date.toLocaleString("es-ES", { weekday: "short" })
+          return weekday.charAt(0).toUpperCase() + weekday.slice(1)
+        },
+        formatCaption: (date) =>
+          date.toLocaleString("es-ES", { month: "long", year: "numeric" }),
         ...formatters,
+      }}
+      labels={{
+        labelMonthDropdown: () => "Mes",
+        labelYearDropdown: () => "Año",
+        labelNext: () => "Ir al mes siguiente",
+        labelPrevious: () => "Ir al mes anterior",
+        labelWeekday: (date) => date.toLocaleString("es-ES", { weekday: "long" }),
+        ...props.labels,
       }}
       classNames={{
         root: cn("w-fit", defaultClassNames.root),
@@ -130,6 +146,9 @@ function Calendar({
             <div
               data-slot="calendar"
               ref={rootRef}
+              role="application"
+              aria-label="Selector de fecha"
+              lang="es"
               className={cn(className)}
               {...props}
             />
@@ -138,7 +157,11 @@ function Calendar({
         Chevron: ({ className, orientation, ...props }) => {
           if (orientation === "left") {
             return (
-              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
+              <ChevronLeftIcon
+                className={cn("size-4", className)}
+                aria-hidden="true"
+                {...props}
+              />
             )
           }
 
@@ -146,23 +169,54 @@ function Calendar({
             return (
               <ChevronRightIcon
                 className={cn("size-4", className)}
+                aria-hidden="true"
                 {...props}
               />
             )
           }
 
           return (
-            <ChevronDownIcon className={cn("size-4", className)} {...props} />
+            <ChevronDownIcon
+              className={cn("size-4", className)}
+              aria-hidden="true"
+              {...props}
+            />
           )
         },
         DayButton: CalendarDayButton,
         WeekNumber: ({ children, ...props }) => {
           return (
-            <td {...props}>
+            <td {...props} role="columnheader" aria-label={`Semana ${children}`}>
               <div className="flex size-(--cell-size) items-center justify-center text-center">
                 {children}
               </div>
             </td>
+          )
+        },
+        PreviousMonthButton: ({ className, ...props }: any) => {
+          return (
+            <button
+              {...props}
+              className={cn(
+                buttonVariants({ variant: buttonVariant }),
+                "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
+                className
+              )}
+              aria-label="Ir al mes anterior"
+            />
+          )
+        },
+        NextMonthButton: ({ className, ...props }: any) => {
+          return (
+            <button
+              {...props}
+              className={cn(
+                buttonVariants({ variant: buttonVariant }),
+                "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
+                className
+              )}
+              aria-label="Ir al mes siguiente"
+            />
           )
         },
         ...components,
@@ -185,12 +239,59 @@ function CalendarDayButton({
     if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
 
+  // Generar aria-label descriptivo para VoiceOver
+  const formatDateForAria = (date: Date) => {
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }
+    return date.toLocaleDateString('es-ES', options)
+  }
+
+  const getAriaLabel = () => {
+    const dateStr = formatDateForAria(day.date)
+    let label = dateStr
+
+    if (modifiers.selected) {
+      if (modifiers.range_start) {
+        label = `${dateStr}, fecha de inicio seleccionada`
+      } else if (modifiers.range_end) {
+        label = `${dateStr}, fecha de fin seleccionada`
+      } else if (modifiers.range_middle) {
+        label = `${dateStr}, fecha en rango seleccionado`
+      } else {
+        label = `${dateStr}, fecha seleccionada`
+      }
+    }
+
+    if (modifiers.today) {
+      label = `${label}, hoy`
+    }
+
+    if (modifiers.disabled) {
+      label = `${label}, no disponible`
+    }
+
+    if (modifiers.outside) {
+      label = `${label}, fuera del mes actual`
+    }
+
+    return label
+  }
+
   return (
     <Button
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString()}
+      role="gridcell"
+      lang="es"
+      aria-label={getAriaLabel()}
+      aria-selected={modifiers.selected ? 'true' : 'false'}
+      aria-disabled={modifiers.disabled ? 'true' : 'false'}
+      data-day={day.date.toLocaleDateString('es-ES')}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

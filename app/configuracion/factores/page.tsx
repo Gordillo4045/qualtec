@@ -494,15 +494,21 @@ export default function FactoresConfigPage() {
                                     </SheetDescription>
                                 </SheetHeader>
 
-                                <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+                                <form onSubmit={handleSubmit} className="mt-6 space-y-6" aria-label={isEditing ? `Formulario para editar ${activeTab === 'factores' ? 'factor' : 'subfactor'}` : `Formulario para crear nuevo ${activeTab === 'factores' ? 'factor' : 'subfactor'}`}>
                                     {activeTab === 'subfactores' && (
                                         <Field>
-                                            <Label>Factor *</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="id_factor" required>Factor</Label>
+                                                <FieldHelp
+                                                    description="Factor de riesgo al que pertenece este subfactor."
+                                                    id="help-factor-subfactor"
+                                                />
+                                            </div>
                                             <Select
                                                 value={formData.id_factor}
                                                 onValueChange={(value) => setFormData({ ...formData, id_factor: value })}
                                             >
-                                                <SelectTrigger>
+                                                <SelectTrigger id="id_factor" aria-label="Factor de riesgo" aria-describedby="help-factor-subfactor" aria-required="true">
                                                     <SelectValue placeholder="Seleccionar factor" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -517,22 +523,39 @@ export default function FactoresConfigPage() {
                                     )}
 
                                     <Field>
-                                        <Label>Nombre *</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="nombre-factor" required>Nombre</Label>
+                                            <FieldHelp
+                                                description={`Nombre descriptivo del ${activeTab === 'factores' ? 'factor' : 'subfactor'} de riesgo.`}
+                                                id="help-nombre-factor"
+                                            />
+                                        </div>
                                         <Input
+                                            id="nombre-factor"
+                                            aria-label={`Nombre del ${activeTab === 'factores' ? 'factor' : 'subfactor'}`}
+                                            aria-describedby="help-nombre-factor"
+                                            aria-required="true"
                                             value={formData.nombre}
                                             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                                             placeholder={`Nombre del ${activeTab === 'factores' ? 'factor' : 'subfactor'}`}
+                                            required
                                         />
                                     </Field>
 
                                     {activeTab === 'factores' ? (
                                         <Field>
-                                            <Label>Categoría</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="categoria">Categoría</Label>
+                                                <FieldHelp 
+                                                    description="Categoría del factor de riesgo. Ayuda a clasificar y organizar los factores."
+                                                    id="help-categoria-factor"
+                                                />
+                                            </div>
                                             <Select
                                                 value={formData.categoria}
                                                 onValueChange={(value) => setFormData({ ...formData, categoria: value })}
                                             >
-                                                <SelectTrigger>
+                                                <SelectTrigger id="categoria" aria-label="Categoría del factor" aria-describedby="help-categoria-factor">
                                                     <SelectValue placeholder="Seleccionar categoría" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -549,8 +572,17 @@ export default function FactoresConfigPage() {
                                         </Field>
                                     ) : (
                                         <Field>
-                                            <Label>Descripción</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="descripcion-subfactor">Descripción</Label>
+                                                <FieldHelp 
+                                                    description="Descripción detallada del subfactor de riesgo. Incluye información sobre cómo se manifiesta o afecta al estudiante."
+                                                    id="help-descripcion-subfactor"
+                                                />
+                                            </div>
                                             <textarea
+                                                id="descripcion-subfactor"
+                                                aria-label="Descripción del subfactor"
+                                                aria-describedby="help-descripcion-subfactor"
                                                 value={formData.descripcion}
                                                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, descripcion: e.target.value })}
                                                 placeholder="Descripción detallada del subfactor"
@@ -559,6 +591,12 @@ export default function FactoresConfigPage() {
                                             />
                                         </Field>
                                     )}
+
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
+                                    </div>
 
                                     <div className="flex justify-end space-x-2">
                                         <Button type="button" variant="outline" onClick={handleClose}>

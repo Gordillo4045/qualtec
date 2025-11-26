@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { FieldHelp } from "@/components/ui/field-help"
 import {
     Table,
     TableBody,
@@ -263,16 +264,30 @@ export default function DepartamentosPage() {
                                         {isEditing ? 'Modifica los datos del departamento' : 'Agrega un nuevo departamento al sistema'}
                                     </SheetDescription>
                                 </SheetHeader>
-                                <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+                                <form onSubmit={handleSubmit} className="space-y-4 mt-6" aria-label={isEditing ? 'Formulario para editar departamento' : 'Formulario para crear nuevo departamento'}>
                                     <div className="space-y-2">
-                                        <Label htmlFor="nombre">Nombre del Departamento</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="nombre" required>Nombre del Departamento</Label>
+                                            <FieldHelp
+                                                description="Nombre del departamento académico. Ejemplos: Sistemas y Computación, Industrial, Electrónica, etc."
+                                                id="help-nombre-departamento"
+                                            />
+                                        </div>
                                         <Input
                                             id="nombre"
+                                            aria-label="Nombre del departamento"
+                                            aria-describedby="help-nombre-departamento"
+                                            aria-required="true"
                                             value={formData.nombre}
                                             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                                             placeholder="Sistemas y Computación"
                                             required
                                         />
+                                    </div>
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
                                     </div>
                                     <div className="flex gap-2 pt-4">
                                         <Button type="submit" className="flex-1">

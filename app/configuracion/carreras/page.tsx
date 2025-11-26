@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { FieldHelp } from "@/components/ui/field-help"
 import {
     Table,
     TableBody,
@@ -312,11 +313,20 @@ export default function CarrerasPage() {
                                         {isEditing ? 'Modifica los datos de la carrera' : 'Agrega una nueva carrera al sistema'}
                                     </SheetDescription>
                                 </SheetHeader>
-                                <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+                                <form onSubmit={handleSubmit} className="space-y-4 mt-6" aria-label={isEditing ? 'Formulario para editar carrera' : 'Formulario para crear nueva carrera'}>
                                     <div className="space-y-2">
-                                        <Label htmlFor="nombre">Nombre de la Carrera</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="nombre" required>Nombre de la Carrera</Label>
+                                            <FieldHelp
+                                                description="Nombre completo de la carrera académica. Ejemplo: Ingeniería en Sistemas Computacionales."
+                                                id="help-nombre-carrera"
+                                            />
+                                        </div>
                                         <Input
                                             id="nombre"
+                                            aria-label="Nombre de la carrera"
+                                            aria-describedby="help-nombre-carrera"
+                                            aria-required="true"
                                             value={formData.nombre}
                                             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                                             placeholder="Ing. Sistemas Computacionales"
@@ -324,9 +334,18 @@ export default function CarrerasPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="clave">Clave</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="clave" required>Clave</Label>
+                                            <FieldHelp
+                                                description="Código abreviado de la carrera. Ejemplo: ISC para Ingeniería en Sistemas Computacionales."
+                                                id="help-clave-carrera"
+                                            />
+                                        </div>
                                         <Input
                                             id="clave"
+                                            aria-label="Clave de la carrera"
+                                            aria-describedby="help-clave-carrera"
+                                            aria-required="true"
                                             value={formData.clave}
                                             onChange={(e) => setFormData({ ...formData, clave: e.target.value })}
                                             placeholder="ISC"
@@ -334,9 +353,18 @@ export default function CarrerasPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="departamento">Departamento</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="departamento" required>Departamento</Label>
+                                            <FieldHelp
+                                                description="Departamento académico al que pertenece la carrera."
+                                                id="help-departamento-carrera"
+                                            />
+                                        </div>
                                         <select
                                             id="departamento"
+                                            aria-label="Departamento de la carrera"
+                                            aria-describedby="help-departamento-carrera"
+                                            aria-required="true"
                                             value={formData.id_departamento}
                                             onChange={(e) => setFormData({ ...formData, id_departamento: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -349,6 +377,11 @@ export default function CarrerasPage() {
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
                                     </div>
                                     <div className="flex gap-2 pt-4">
                                         <Button type="submit" className="flex-1">

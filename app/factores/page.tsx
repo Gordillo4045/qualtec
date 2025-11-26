@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Field } from "@/components/ui/field"
+import { FieldHelp } from "@/components/ui/field-help"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import {
     Table,
@@ -443,14 +444,20 @@ export default function FactoresPage() {
                                 </SheetDescription>
                             </SheetHeader>
 
-                            <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+                            <form onSubmit={handleSubmit} className="mt-6 space-y-6" aria-label={isEditing ? 'Formulario para editar factor de riesgo' : 'Formulario para registrar nuevo factor de riesgo'}>
                                 <Field>
-                                    <Label>Estudiante *</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="id_estudiante-factor" required>Estudiante</Label>
+                                        <FieldHelp
+                                            description="Estudiante al que se le registra el factor de riesgo."
+                                            id="help-estudiante-factor"
+                                        />
+                                    </div>
                                     <Select
                                         value={formData.id_estudiante}
                                         onValueChange={(value) => setFormData({ ...formData, id_estudiante: value })}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="id_estudiante-factor" aria-label="Estudiante" aria-describedby="help-estudiante-factor" aria-required="true">
                                             <SelectValue placeholder="Seleccionar estudiante" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -464,12 +471,18 @@ export default function FactoresPage() {
                                 </Field>
 
                                 <Field>
-                                    <Label>Período *</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="id_periodo-factor" required>Período</Label>
+                                        <FieldHelp
+                                            description="Período académico en el que se presenta el factor de riesgo."
+                                            id="help-periodo-factor"
+                                        />
+                                    </div>
                                     <Select
                                         value={formData.id_periodo}
                                         onValueChange={(value) => setFormData({ ...formData, id_periodo: value })}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="id_periodo-factor" aria-label="Período académico" aria-describedby="help-periodo-factor" aria-required="true">
                                             <SelectValue placeholder="Seleccionar período" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -483,14 +496,20 @@ export default function FactoresPage() {
                                 </Field>
 
                                 <Field>
-                                    <Label>Factor de Riesgo *</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="id_factor-riesgo" required>Factor de Riesgo</Label>
+                                        <FieldHelp
+                                            description="Categoría principal del factor de riesgo que afecta al estudiante."
+                                            id="help-factor-riesgo"
+                                        />
+                                    </div>
                                     <Select
                                         value={formData.id_factor}
                                         onValueChange={(value) => {
                                             setFormData({ ...formData, id_factor: value, id_subfactor: '' })
                                         }}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="id_factor-riesgo" aria-label="Factor de riesgo" aria-describedby="help-factor-riesgo" aria-required="true">
                                             <SelectValue placeholder="Seleccionar factor" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -504,13 +523,19 @@ export default function FactoresPage() {
                                 </Field>
 
                                 <Field>
-                                    <Label>Subfactor *</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="id_subfactor-riesgo" required>Subfactor</Label>
+                                        <FieldHelp
+                                            description="Subfactor específico relacionado con el factor de riesgo seleccionado. Solo disponible después de seleccionar un factor."
+                                            id="help-subfactor-riesgo"
+                                        />
+                                    </div>
                                     <Select
                                         value={formData.id_subfactor}
                                         onValueChange={(value) => setFormData({ ...formData, id_subfactor: value })}
                                         disabled={!formData.id_factor}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="id_subfactor-riesgo" aria-label="Subfactor de riesgo" aria-describedby="help-subfactor-riesgo" aria-required="true" aria-disabled={!formData.id_factor}>
                                             <SelectValue placeholder="Seleccionar subfactor" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -524,12 +549,18 @@ export default function FactoresPage() {
                                 </Field>
 
                                 <Field>
-                                    <Label>Severidad (1-5) *</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="severidad-factor" required>Severidad (1-5)</Label>
+                                        <FieldHelp
+                                            description="Nivel de severidad del factor de riesgo. 1 es muy baja y 5 es muy alta severidad."
+                                            id="help-severidad-factor"
+                                        />
+                                    </div>
                                     <Select
                                         value={formData.severidad}
                                         onValueChange={(value) => setFormData({ ...formData, severidad: value })}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger id="severidad-factor" aria-label="Severidad del factor" aria-describedby="help-severidad-factor" aria-required="true">
                                             <SelectValue placeholder="Seleccionar severidad" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -543,8 +574,17 @@ export default function FactoresPage() {
                                 </Field>
 
                                 <Field>
-                                    <Label>Observación</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="observacion-factor">Observación</Label>
+                                        <FieldHelp 
+                                            description="Observaciones adicionales sobre el factor de riesgo registrado. Incluye detalles relevantes para el seguimiento."
+                                            id="help-observacion-factor"
+                                        />
+                                    </div>
                                     <textarea
+                                        id="observacion-factor"
+                                        aria-label="Observaciones del factor de riesgo"
+                                        aria-describedby="help-observacion-factor"
                                         value={formData.observacion}
                                         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, observacion: e.target.value })}
                                         placeholder="Observaciones adicionales..."
@@ -552,6 +592,12 @@ export default function FactoresPage() {
                                         className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     />
                                 </Field>
+
+                                <div className="pt-2 pb-2">
+                                    <p className="text-xs text-muted-foreground">
+                                        <span className="text-destructive">*</span> Campos obligatorios
+                                    </p>
+                                </div>
 
                                 <div className="flex justify-end space-x-2">
                                     <Button type="button" variant="outline" onClick={handleClose}>

@@ -389,9 +389,11 @@ export default function PeriodosPage() {
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="etiqueta">Etiqueta</Label>
+                                        <Label htmlFor="etiqueta" required>Etiqueta</Label>
                                         <Input
                                             id="etiqueta"
+                                            aria-label="Etiqueta del período"
+                                            aria-required="true"
                                             value={formData.etiqueta}
                                             onChange={(e) => setFormData({ ...formData, etiqueta: e.target.value })}
                                             placeholder="2024-1"
@@ -509,6 +511,11 @@ export default function PeriodosPage() {
                                                 </PopoverContent>
                                             </Popover>
                                         </div>
+                                    </div>
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
                                     </div>
                                     <div className="flex gap-2 pt-4">
                                         <Button type="submit" className="flex-1">

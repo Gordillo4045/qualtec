@@ -399,9 +399,11 @@ export default function OfertasPage() {
                                 </SheetHeader>
                                 <form onSubmit={handleSubmit} className="space-y-4 mt-6">
                                     <div className="space-y-2">
-                                        <Label htmlFor="materia">Materia</Label>
+                                        <Label htmlFor="materia" required>Materia</Label>
                                         <select
                                             id="materia"
+                                            aria-label="Materia de la oferta"
+                                            aria-required="true"
                                             value={formData.id_materia}
                                             onChange={(e) => setFormData({ ...formData, id_materia: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -416,9 +418,11 @@ export default function OfertasPage() {
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="periodo">Periodo</Label>
+                                        <Label htmlFor="periodo" required>Periodo</Label>
                                         <select
                                             id="periodo"
+                                            aria-label="Período de la oferta"
+                                            aria-required="true"
                                             value={formData.id_periodo}
                                             onChange={(e) => setFormData({ ...formData, id_periodo: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -433,9 +437,11 @@ export default function OfertasPage() {
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="grupo">Grupo</Label>
+                                        <Label htmlFor="grupo" required>Grupo</Label>
                                         <select
                                             id="grupo"
+                                            aria-label="Grupo de la oferta"
+                                            aria-required="true"
                                             value={formData.id_grupo}
                                             onChange={(e) => setFormData({ ...formData, id_grupo: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -448,6 +454,11 @@ export default function OfertasPage() {
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
                                     </div>
                                     <div className="flex gap-2 pt-4">
                                         <Button type="submit" className="flex-1">

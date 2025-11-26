@@ -7,6 +7,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Field } from "@/components/ui/field"
+import { FieldHelp } from "@/components/ui/field-help"
 import {
     Table,
     TableBody,
@@ -563,12 +564,21 @@ export default function EstudiantesPage() {
                                         {isEditing ? 'Modifica los datos del estudiante' : 'Agrega un nuevo estudiante al sistema'}
                                     </SheetDescription>
                                 </SheetHeader>
-                                <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+                                <form onSubmit={handleSubmit} className="space-y-6 mt-6" aria-label={isEditing ? 'Formulario para editar estudiante' : 'Formulario para crear nuevo estudiante'}>
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field>
-                                            <Label htmlFor="numero_control">Número de Control *</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="numero_control" required>Número de Control</Label>
+                                                <FieldHelp
+                                                    description="Identificador único del estudiante en el sistema. Se usa para generar automáticamente el correo electrónico institucional."
+                                                    id="help-numero-control"
+                                                />
+                                            </div>
                                             <Input
                                                 id="numero_control"
+                                                aria-label="Número de control del estudiante"
+                                                aria-describedby="help-numero-control"
+                                                aria-required="true"
                                                 value={formData.numero_control}
                                                 onChange={(e) => {
                                                     const numeroControl = e.target.value
@@ -587,9 +597,18 @@ export default function EstudiantesPage() {
                                             />
                                         </Field>
                                         <Field>
-                                            <Label htmlFor="estatus">Estatus</Label>
-                                            <Select value={formData.estatus} onValueChange={(value) => setFormData({ ...formData, estatus: value })}>
-                                                <SelectTrigger>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="estatus" required>Estatus</Label>
+                                                <FieldHelp
+                                                    description="Estado actual del estudiante en el sistema. Puede ser activo, baja temporal, egresado o desertor."
+                                                    id="help-estatus"
+                                                />
+                                            </div>
+                                            <Select
+                                                value={formData.estatus}
+                                                onValueChange={(value) => setFormData({ ...formData, estatus: value })}
+                                            >
+                                                <SelectTrigger id="estatus" aria-label="Estatus del estudiante" aria-describedby="help-estatus" aria-required="true">
                                                     <SelectValue placeholder="Seleccionar estatus" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -604,9 +623,18 @@ export default function EstudiantesPage() {
 
                                     <div className="grid grid-cols-3 gap-4">
                                         <Field>
-                                            <Label htmlFor="ap_paterno">Apellido Paterno *</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="ap_paterno" required>Apellido Paterno</Label>
+                                                <FieldHelp
+                                                    description="Primer apellido del estudiante según su acta de nacimiento."
+                                                    id="help-ap-paterno"
+                                                />
+                                            </div>
                                             <Input
                                                 id="ap_paterno"
+                                                aria-label="Apellido paterno del estudiante"
+                                                aria-describedby="help-ap-paterno"
+                                                aria-required="true"
                                                 value={formData.ap_paterno}
                                                 onChange={(e) => setFormData({ ...formData, ap_paterno: e.target.value })}
                                                 placeholder="Pérez"
@@ -614,9 +642,18 @@ export default function EstudiantesPage() {
                                             />
                                         </Field>
                                         <Field>
-                                            <Label htmlFor="ap_materno">Apellido Materno *</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="ap_materno" required>Apellido Materno</Label>
+                                                <FieldHelp
+                                                    description="Segundo apellido del estudiante según su acta de nacimiento."
+                                                    id="help-ap-materno"
+                                                />
+                                            </div>
                                             <Input
                                                 id="ap_materno"
+                                                aria-label="Apellido materno del estudiante"
+                                                aria-describedby="help-ap-materno"
+                                                aria-required="true"
                                                 value={formData.ap_materno}
                                                 onChange={(e) => setFormData({ ...formData, ap_materno: e.target.value })}
                                                 placeholder="García"
@@ -624,9 +661,18 @@ export default function EstudiantesPage() {
                                             />
                                         </Field>
                                         <Field>
-                                            <Label htmlFor="nombres">Nombres *</Label>
+                                            <div className="flex flex-1 items-center gap-2">
+                                                <Label htmlFor="nombres" required>Nombres</Label>
+                                                <FieldHelp
+                                                    description="Nombre o nombres de pila del estudiante."
+                                                    id="help-nombres"
+                                                />
+                                            </div>
                                             <Input
                                                 id="nombres"
+                                                aria-label="Nombres del estudiante"
+                                                aria-describedby="help-nombres"
+                                                aria-required="true"
                                                 value={formData.nombres}
                                                 onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
                                                 placeholder="Juan Carlos"
@@ -637,9 +683,18 @@ export default function EstudiantesPage() {
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field>
-                                            <Label htmlFor="genero">Género</Label>
-                                            <Select value={formData.genero} onValueChange={(value) => setFormData({ ...formData, genero: value })}>
-                                                <SelectTrigger>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="genero" required>Género</Label>
+                                                <FieldHelp
+                                                    description="Identidad de género del estudiante."
+                                                    id="help-genero"
+                                                />
+                                            </div>
+                                            <Select
+                                                value={formData.genero}
+                                                onValueChange={(value) => setFormData({ ...formData, genero: value })}
+                                            >
+                                                <SelectTrigger id="genero" aria-label="Género del estudiante" aria-describedby="help-genero" aria-required="true">
                                                     <SelectValue placeholder="Seleccionar género" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -650,10 +705,18 @@ export default function EstudiantesPage() {
                                             </Select>
                                         </Field>
                                         <Field>
-                                            <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
+                                                <FieldHelp
+                                                    description="Fecha de nacimiento del estudiante. Se usa para calcular la edad y validaciones administrativas."
+                                                    id="help-fecha-nacimiento"
+                                                />
+                                            </div>
                                             <div className="relative flex gap-2">
                                                 <Input
                                                     id="fecha_nacimiento"
+                                                    aria-label="Fecha de nacimiento del estudiante"
+                                                    aria-describedby="help-fecha-nacimiento"
                                                     value={fechaNacimientoValue}
                                                     placeholder="01 de enero, 2000"
                                                     className="bg-background pr-10"
@@ -677,6 +740,7 @@ export default function EstudiantesPage() {
                                                             id="fecha-nacimiento-picker"
                                                             variant="ghost"
                                                             className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+                                                            aria-label="Abrir selector de fecha de nacimiento"
                                                         >
                                                             <CalendarIcon className="size-3.5" />
                                                             <span className="sr-only">Seleccionar fecha</span>
@@ -706,10 +770,19 @@ export default function EstudiantesPage() {
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field>
-                                            <Label htmlFor="email">Email *</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="email" required>Email</Label>
+                                                <FieldHelp
+                                                    description="Correo electrónico institucional del estudiante. Se genera automáticamente basado en el número de control, pero puede modificarse."
+                                                    id="help-email"
+                                                />
+                                            </div>
                                             <Input
                                                 id="email"
                                                 type="email"
+                                                aria-label="Correo electrónico del estudiante"
+                                                aria-describedby="help-email"
+                                                aria-required="true"
                                                 value={formData.email}
                                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                                 placeholder="l21212372@tectijuana.edu.mx"
@@ -717,21 +790,41 @@ export default function EstudiantesPage() {
                                             />
                                         </Field>
                                         <Field>
-                                            <Label htmlFor="telefono">Teléfono</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="telefono" required>Teléfono</Label>
+                                                <FieldHelp
+                                                    description="Número de teléfono de contacto del estudiante. Incluye código de área si aplica."
+                                                    id="help-telefono"
+                                                />
+                                            </div>
                                             <Input
                                                 id="telefono"
+                                                type="tel"
+                                                aria-label="Teléfono de contacto del estudiante"
+                                                aria-describedby="help-telefono"
+                                                aria-required="true"
                                                 value={formData.telefono}
                                                 onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                                                 placeholder="555-0123"
+                                                required
                                             />
                                         </Field>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field>
-                                            <Label htmlFor="id_carrera">Carrera</Label>
-                                            <Select value={formData.id_carrera} onValueChange={(value) => setFormData({ ...formData, id_carrera: value })}>
-                                                <SelectTrigger>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="id_carrera" required>Carrera</Label>
+                                                <FieldHelp
+                                                    description="Programa académico en el que está inscrito el estudiante."
+                                                    id="help-carrera"
+                                                />
+                                            </div>
+                                            <Select
+                                                value={formData.id_carrera}
+                                                onValueChange={(value) => setFormData({ ...formData, id_carrera: value })}
+                                            >
+                                                <SelectTrigger id="id_carrera" aria-label="Carrera del estudiante" aria-describedby="help-carrera" aria-required="true">
                                                     <SelectValue placeholder="Seleccionar carrera" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -744,9 +837,18 @@ export default function EstudiantesPage() {
                                             </Select>
                                         </Field>
                                         <Field>
-                                            <Label htmlFor="id_modalidad">Modalidad</Label>
-                                            <Select value={formData.id_modalidad} onValueChange={(value) => setFormData({ ...formData, id_modalidad: value })}>
-                                                <SelectTrigger>
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor="id_modalidad" required>Modalidad</Label>
+                                                <FieldHelp
+                                                    description="Forma de estudio del estudiante: presencial, en línea o mixta."
+                                                    id="help-modalidad"
+                                                />
+                                            </div>
+                                            <Select
+                                                value={formData.id_modalidad}
+                                                onValueChange={(value) => setFormData({ ...formData, id_modalidad: value })}
+                                            >
+                                                <SelectTrigger id="id_modalidad" aria-label="Modalidad de estudio" aria-describedby="help-modalidad" aria-required="true">
                                                     <SelectValue placeholder="Seleccionar modalidad" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -758,6 +860,12 @@ export default function EstudiantesPage() {
                                                 </SelectContent>
                                             </Select>
                                         </Field>
+                                    </div>
+
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
                                     </div>
 
                                     <div className="flex gap-2 pt-4">

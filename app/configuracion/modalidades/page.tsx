@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
+import { FieldHelp } from "@/components/ui/field-help"
 import {
     Table,
     TableBody,
@@ -244,16 +245,30 @@ export default function ModalidadesPage() {
                                         {isEditing ? 'Modifica los datos de la modalidad' : 'Agrega una nueva modalidad al sistema'}
                                     </SheetDescription>
                                 </SheetHeader>
-                                <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+                                <form onSubmit={handleSubmit} className="space-y-4 mt-6" aria-label={isEditing ? 'Formulario para editar modalidad' : 'Formulario para crear nueva modalidad'}>
                                     <div className="space-y-2">
-                                        <Label htmlFor="nombre">Nombre *</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="nombre" required>Nombre</Label>
+                                            <FieldHelp
+                                                description="Nombre de la modalidad de estudio. Ejemplos: Presencial, En línea, Mixta, etc."
+                                                id="help-nombre-modalidad"
+                                            />
+                                        </div>
                                         <Input
                                             id="nombre"
+                                            aria-label="Nombre de la modalidad"
+                                            aria-describedby="help-nombre-modalidad"
+                                            aria-required="true"
                                             value={formData.nombre}
                                             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                                             placeholder="Presencial, En línea, Mixta"
                                             required
                                         />
+                                    </div>
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
                                     </div>
                                     <div className="flex gap-2 pt-4">
                                         <Button type="submit" className="flex-1">

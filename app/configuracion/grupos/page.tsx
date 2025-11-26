@@ -323,9 +323,11 @@ export default function GruposPage() {
                                 </SheetHeader>
                                 <form onSubmit={handleSubmit} className="space-y-4 mt-6">
                                     <div className="space-y-2">
-                                        <Label htmlFor="clave">Clave del Grupo</Label>
+                                        <Label htmlFor="clave" required>Clave del Grupo</Label>
                                         <Input
                                             id="clave"
+                                            aria-label="Clave del grupo"
+                                            aria-required="true"
                                             value={formData.clave}
                                             onChange={(e) => setFormData({ ...formData, clave: e.target.value })}
                                             placeholder="ISC-1A"
@@ -333,9 +335,11 @@ export default function GruposPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="turno">Turno</Label>
+                                        <Label htmlFor="turno" required>Turno</Label>
                                         <select
                                             id="turno"
+                                            aria-label="Turno del grupo"
+                                            aria-required="true"
                                             value={formData.turno}
                                             onChange={(e) => setFormData({ ...formData, turno: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -349,9 +353,11 @@ export default function GruposPage() {
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="carrera">Carrera</Label>
+                                        <Label htmlFor="carrera" required>Carrera</Label>
                                         <select
                                             id="carrera"
+                                            aria-label="Carrera del grupo"
+                                            aria-required="true"
                                             value={formData.id_carrera}
                                             onChange={(e) => setFormData({ ...formData, id_carrera: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -364,6 +370,11 @@ export default function GruposPage() {
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+                                    <div className="pt-2 pb-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="text-destructive">*</span> Campos obligatorios
+                                        </p>
                                     </div>
                                     <div className="flex gap-2 pt-4">
                                         <Button type="submit" className="flex-1">
