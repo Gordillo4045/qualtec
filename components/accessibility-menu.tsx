@@ -25,9 +25,20 @@ import {
     Plus,
     Highlighter,
     CaseSensitive,
-    PersonStanding
+    PersonStanding,
+    Circle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+type ColorBlindnessType =
+    | 'none'
+    | 'protanopia'
+    | 'protanomaly'
+    | 'deuteranopia'
+    | 'deuteranomaly'
+    | 'tritanopia'
+    | 'tritanomaly'
+    | 'achromatopsia'
 
 interface AccessibilitySettings {
     grayscale: boolean
@@ -41,6 +52,7 @@ interface AccessibilitySettings {
     horizontalSpacing: 'normal' | 'medium' | 'large'
     fontSize: number
     highlightLinks: boolean
+    colorBlindness: ColorBlindnessType
 }
 
 const defaultSettings: AccessibilitySettings = {
@@ -55,6 +67,19 @@ const defaultSettings: AccessibilitySettings = {
     horizontalSpacing: 'normal',
     fontSize: 16,
     highlightLinks: false,
+    colorBlindness: 'none',
+}
+
+// Referencias a filtros SVG para diferentes tipos de daltonismo
+const colorBlindnessFilters: Record<ColorBlindnessType, string> = {
+    none: '',
+    protanopia: 'url(#protanopia)',
+    protanomaly: 'url(#protanomaly)',
+    deuteranopia: 'url(#deuteranopia)',
+    deuteranomaly: 'url(#deuteranomaly)',
+    tritanopia: 'url(#tritanopia)',
+    tritanomaly: 'url(#tritanomaly)',
+    achromatopsia: 'grayscale(100%)',
 }
 
 export function AccessibilityMenu() {
@@ -316,11 +341,53 @@ export function AccessibilityMenu() {
     useEffect(() => {
         const root = document.documentElement
         const body = document.body
-        if (settings.grayscale) {
-            root.style.filter = 'grayscale(100%)'
-        } else {
-            root.style.filter = ''
+
+        // Crear o actualizar los filtros SVG para daltonismo
+        let svgFiltersContainer = document.getElementById('colorblindness-filters')
+        if (!svgFiltersContainer) {
+            svgFiltersContainer = document.createElement('div')
+            svgFiltersContainer.id = 'colorblindness-filters'
+            svgFiltersContainer.style.cssText = 'position: absolute; width: 0; height: 0; overflow: hidden;'
+            svgFiltersContainer.innerHTML = `
+                <svg>
+                    <defs>
+                        <filter id="protanopia" color-interpolation-filters="sRGB">
+                            <feColorMatrix type="matrix" values="0.567 0.433 0 0 0 0.558 0.442 0 0 0 0 0.242 0.758 0 0 0 0 0 1 0"/>
+                        </filter>
+                        <filter id="protanomaly" color-interpolation-filters="sRGB">
+                            <feColorMatrix type="matrix" values="0.817 0.183 0 0 0 0.333 0.667 0 0 0 0 0.125 0.875 0 0 0 0 0 1 0"/>
+                        </filter>
+                        <filter id="deuteranopia" color-interpolation-filters="sRGB">
+                            <feColorMatrix type="matrix" values="0.625 0.375 0 0 0 0.7 0.3 0 0 0 0 0.3 0.7 0 0 0 0 0 1 0"/>
+                        </filter>
+                        <filter id="deuteranomaly" color-interpolation-filters="sRGB">
+                            <feColorMatrix type="matrix" values="0.8 0.2 0 0 0 0.258 0.742 0 0 0 0 0.142 0.858 0 0 0 0 0 1 0"/>
+                        </filter>
+                        <filter id="tritanopia" color-interpolation-filters="sRGB">
+                            <feColorMatrix type="matrix" values="0.95 0.05 0 0 0 0 0.433 0.567 0 0 0 0.475 0.525 0 0 0 0 0 1 0"/>
+                        </filter>
+                        <filter id="tritanomaly" color-interpolation-filters="sRGB">
+                            <feColorMatrix type="matrix" values="0.967 0.033 0 0 0 0 0.733 0.267 0 0 0 0.183 0.817 0 0 0 0 0 1 0"/>
+                        </filter>
+                    </defs>
+                </svg>
+            `
+            document.body.appendChild(svgFiltersContainer)
         }
+
+        // Aplicar filtros de daltonismo o escala de grises
+        let filterValue = ''
+        if (settings.grayscale) {
+            filterValue = 'grayscale(100%)'
+        } else if (settings.colorBlindness !== 'none') {
+            if (settings.colorBlindness === 'achromatopsia') {
+                filterValue = 'grayscale(100%)'
+            } else {
+                filterValue = colorBlindnessFilters[settings.colorBlindness]
+            }
+        }
+
+        root.style.filter = filterValue
 
         const existingCursorStyle = document.getElementById('cursor-size-style')
         if (existingCursorStyle) existingCursorStyle.remove()
@@ -454,7 +521,7 @@ export function AccessibilityMenu() {
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
                 <SheetTrigger asChild>
                     <Button
-                        className="fixed bottom-6 right-6 z-50 size-10 bg-black/30 rounded-full shadow-lg hover:shadow-xl transition-all"
+                        className="fixed bottom-6 right-6 z-50 size-10 bg-black/30 rounded-full shadow-lg hover:shadow-xl transition-all dark:bg-white/30"
                         size="icon"
                         aria-label="Menú de accesibilidad"
                     >
@@ -495,7 +562,15 @@ export function AccessibilityMenu() {
                             <Button
                                 variant={settings.grayscale ? "default" : "outline"}
                                 size="sm"
-                                onClick={() => toggleSetting('grayscale')}
+                                onClick={() => {
+                                    const newGrayscale = !settings.grayscale
+                                    setSettings(prev => ({
+                                        ...prev,
+                                        grayscale: newGrayscale,
+                                        // Desactivar filtro de daltonismo si se activa escala de grises
+                                        colorBlindness: newGrayscale ? 'none' : prev.colorBlindness
+                                    }))
+                                }}
                             >
                                 {settings.grayscale ? 'Activado' : 'Desactivado'}
                             </Button>
@@ -616,6 +691,49 @@ export function AccessibilityMenu() {
                             >
                                 {settings.contrast === 'high' ? 'Alto' : 'Normal'}
                             </Button>
+                        </div>
+
+                        <div className="flex flex-col gap-2 p-4 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-primary/10 rounded-lg">
+                                    <Circle className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="flex flex-col flex-1">
+                                    <span className="font-medium">Filtro de daltonismo</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        Selecciona un filtro de daltonismo
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {([
+                                    { value: 'none', label: 'Ninguno' },
+                                    { value: 'protanopia', label: 'Protanopía' },
+                                    { value: 'protanomaly', label: 'Protanomalía' },
+                                    { value: 'deuteranopia', label: 'Deuteranopía' },
+                                    { value: 'deuteranomaly', label: 'Deuteranomalía' },
+                                    { value: 'tritanopia', label: 'Tritanopía' },
+                                    { value: 'tritanomaly', label: 'Tritanomalía' },
+                                    { value: 'achromatopsia', label: 'Acromatopsia' },
+                                ] as const).map(({ value, label }) => (
+                                    <Button
+                                        key={value}
+                                        variant={settings.colorBlindness === value ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => {
+                                            setSettings(prev => ({
+                                                ...prev,
+                                                colorBlindness: value,
+                                                // Desactivar escala de grises si se selecciona un filtro de daltonismo
+                                                grayscale: value !== 'none' ? false : prev.grayscale
+                                            }))
+                                        }}
+                                        className="text-xs"
+                                    >
+                                        {label}
+                                    </Button>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="flex items-center justify-between p-4 border rounded-lg">
