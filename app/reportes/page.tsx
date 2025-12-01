@@ -885,9 +885,9 @@ export default function ReportesPage() {
                                     return (
                                         <>
                                             <div id="descripcion-distribucion-calificaciones" className="sr-only">
-                                                Gráfico de barras mostrando la distribución de calificaciones. 
-                                                Total de registros: {total}. 
-                                                {datos.map((item) => 
+                                                Gráfico de barras mostrando la distribución de calificaciones.
+                                                Total de registros: {total}.
+                                                {datos.map((item) =>
                                                     ` Rango ${item.rango}: ${item.cantidad} estudiantes.`
                                                 ).join('')}
                                             </div>
@@ -909,30 +909,30 @@ export default function ReportesPage() {
                                                     accessibilityLayer
                                                     data={datos}
                                                 >
+                                                    <CartesianGrid vertical={false} />
+                                                    <XAxis
+                                                        dataKey="rango"
+                                                        tickLine={false}
+                                                        tickMargin={10}
+                                                        axisLine={false}
+                                                        tickFormatter={(value) => value}
+                                                    />
+                                                    <YAxis
+                                                        tickLine={false}
+                                                        axisLine={false}
+                                                        tickMargin={8}
+                                                        tickFormatter={(value) => `${value}`}
+                                                    />
+                                                    <ChartTooltip
+                                                        cursor={false}
+                                                        content={<ChartTooltipContent hideLabel />}
+                                                    />
+                                                    <Bar dataKey="cantidad" fill={COLORS.primary} radius={4} />
+                                                </RechartsBarChart>
+                                            </ChartContainer>
                                         </>
                                     );
                                 })()}
-                                        <CartesianGrid vertical={false} />
-                                        <XAxis
-                                            dataKey="rango"
-                                            tickLine={false}
-                                            tickMargin={10}
-                                            axisLine={false}
-                                            tickFormatter={(value) => value}
-                                        />
-                                        <YAxis
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickMargin={8}
-                                            tickFormatter={(value) => `${value}`}
-                                        />
-                                        <ChartTooltip
-                                            cursor={false}
-                                            content={<ChartTooltipContent hideLabel />}
-                                        />
-                                        <Bar dataKey="cantidad" fill={COLORS.primary} radius={4} />
-                                    </RechartsBarChart>
-                                </ChartContainer>
                             </div>
 
                             {/* Gráfico de aprobación por carrera */}
@@ -940,17 +940,17 @@ export default function ReportesPage() {
                                 <h4 className="text-sm font-medium">Tasa de Aprobación por Carrera</h4>
                                 {(() => {
                                     const datos = generarDatosGraficoAcademico().aprobacionPorCarrera;
-                                    const mejorCarrera = datos.length > 0 
+                                    const mejorCarrera = datos.length > 0
                                         ? datos.reduce((max, item) => (item.tasaAprobacion || 0) > (max.tasaAprobacion || 0) ? item : max, datos[0])
                                         : null;
                                     return (
                                         <>
                                             <div id="descripcion-aprobacion-carrera-reportes" className="sr-only">
-                                                Gráfico de barras mostrando la tasa de aprobación por carrera. 
-                                                {datos.map((item) => 
+                                                Gráfico de barras mostrando la tasa de aprobación por carrera.
+                                                {datos.map((item) =>
                                                     ` ${item.carrera}: ${item.tasaAprobacion}% de aprobación.`
                                                 ).join('')}
-                                                {mejorCarrera 
+                                                {mejorCarrera
                                                     ? ` La carrera con mayor tasa de aprobación es ${mejorCarrera.carrera} con ${mejorCarrera.tasaAprobacion}%.`
                                                     : ''}
                                             </div>
@@ -972,32 +972,32 @@ export default function ReportesPage() {
                                                     accessibilityLayer
                                                     data={datos}
                                                 >
+                                                    <CartesianGrid vertical={false} />
+                                                    <XAxis
+                                                        dataKey="carrera"
+                                                        tickLine={false}
+                                                        tickMargin={10}
+                                                        axisLine={false}
+                                                        angle={-45}
+                                                        textAnchor="end"
+                                                        height={60}
+                                                    />
+                                                    <YAxis
+                                                        tickLine={false}
+                                                        axisLine={false}
+                                                        tickMargin={8}
+                                                        tickFormatter={(value) => `${value}%`}
+                                                    />
+                                                    <ChartTooltip
+                                                        cursor={false}
+                                                        content={<ChartTooltipContent hideLabel />}
+                                                    />
+                                                    <Bar dataKey="tasaAprobacion" fill={COLORS.success} radius={4} />
+                                                </RechartsBarChart>
+                                            </ChartContainer>
                                         </>
                                     );
                                 })()}
-                                        <CartesianGrid vertical={false} />
-                                        <XAxis
-                                            dataKey="carrera"
-                                            tickLine={false}
-                                            tickMargin={10}
-                                            axisLine={false}
-                                            angle={-45}
-                                            textAnchor="end"
-                                            height={60}
-                                        />
-                                        <YAxis
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickMargin={8}
-                                            tickFormatter={(value) => `${value}%`}
-                                        />
-                                        <ChartTooltip
-                                            cursor={false}
-                                            content={<ChartTooltipContent hideLabel />}
-                                        />
-                                        <Bar dataKey="tasaAprobacion" fill={COLORS.success} radius={4} />
-                                    </RechartsBarChart>
-                                </ChartContainer>
                             </div>
 
                             {/* Gráfico circular de distribución de estudiantes */}
@@ -1009,8 +1009,8 @@ export default function ReportesPage() {
                                     return (
                                         <>
                                             <div id="descripcion-distribucion-estudiantes-reportes" className="sr-only">
-                                                Gráfico circular mostrando la distribución de estudiantes por carrera. 
-                                                Total de estudiantes: {total}. 
+                                                Gráfico circular mostrando la distribución de estudiantes por carrera.
+                                                Total de estudiantes: {total}.
                                                 {datos.map((item, idx) => {
                                                     const porcentaje = total > 0 ? ((item.estudiantes / total) * 100).toFixed(1) : '0';
                                                     return ` ${item.carrera}: ${item.estudiantes} estudiantes (${porcentaje}% del total).`;
@@ -1057,9 +1057,9 @@ export default function ReportesPage() {
                                 <h4 className="text-sm font-medium">Evolución de Aprobación por Periodo</h4>
                                 {(() => {
                                     const datos = generarDatosGraficoEstadisticas().evolucionPorPeriodo;
-                                    const tendencia = datos.length > 1 
-                                        ? (datos[datos.length - 1].tasaAprobacion || 0) > (datos[0].tasaAprobacion || 0) 
-                                            ? 'tendencia al alza' 
+                                    const tendencia = datos.length > 1
+                                        ? (datos[datos.length - 1].tasaAprobacion || 0) > (datos[0].tasaAprobacion || 0)
+                                            ? 'tendencia al alza'
                                             : (datos[datos.length - 1].tasaAprobacion || 0) < (datos[0].tasaAprobacion || 0)
                                                 ? 'tendencia a la baja'
                                                 : 'tendencia estable'
@@ -1067,8 +1067,8 @@ export default function ReportesPage() {
                                     return (
                                         <>
                                             <div id="descripcion-evolucion-periodo" className="sr-only">
-                                                Gráfico de línea mostrando la evolución de la tasa de aprobación por período. 
-                                                {datos.map((item) => 
+                                                Gráfico de línea mostrando la evolución de la tasa de aprobación por período.
+                                                {datos.map((item) =>
                                                     ` Período ${item.periodo}: ${item.tasaAprobacion}% de aprobación.`
                                                 ).join('')}
                                                 {tendencia && ` La tendencia general muestra una ${tendencia}.`}
@@ -1091,37 +1091,37 @@ export default function ReportesPage() {
                                                     accessibilityLayer
                                                     data={datos}
                                                 >
+                                                    <CartesianGrid vertical={false} />
+                                                    <XAxis
+                                                        dataKey="periodo"
+                                                        tickLine={false}
+                                                        tickMargin={10}
+                                                        axisLine={false}
+                                                    />
+                                                    <YAxis
+                                                        tickLine={false}
+                                                        axisLine={false}
+                                                        tickMargin={8}
+                                                        tickFormatter={(value) => `${value}%`}
+                                                    />
+                                                    <ChartTooltip
+                                                        cursor={false}
+                                                        content={<ChartTooltipContent hideLabel />}
+                                                    />
+                                                    <Line
+                                                        dataKey="tasaAprobacion"
+                                                        type="monotone"
+                                                        stroke={COLORS.primary}
+                                                        strokeWidth={2}
+                                                        dot={{
+                                                            fill: COLORS.primary,
+                                                        }}
+                                                    />
+                                                </LineChart>
+                                            </ChartContainer>
                                         </>
                                     );
                                 })()}
-                                        <CartesianGrid vertical={false} />
-                                        <XAxis
-                                            dataKey="periodo"
-                                            tickLine={false}
-                                            tickMargin={10}
-                                            axisLine={false}
-                                        />
-                                        <YAxis
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickMargin={8}
-                                            tickFormatter={(value) => `${value}%`}
-                                        />
-                                        <ChartTooltip
-                                            cursor={false}
-                                            content={<ChartTooltipContent hideLabel />}
-                                        />
-                                        <Line
-                                            dataKey="tasaAprobacion"
-                                            type="monotone"
-                                            stroke={COLORS.primary}
-                                            strokeWidth={2}
-                                            dot={{
-                                                fill: COLORS.primary,
-                                            }}
-                                        />
-                                    </LineChart>
-                                </ChartContainer>
                             </div>
                         </div>
                     </CardContent>
