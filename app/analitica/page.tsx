@@ -2002,41 +2002,63 @@ export default function AnaliticaPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ChartContainer
-                                    id="pareto-chart"
-                                    config={{
-                                        grupo: {
-                                            label: "Grupo",
-                                        },
-                                        reprobados: {
-                                            label: "Reprobados",
-                                        },
-                                        porcentajeAcumulado: {
-                                            label: "% Acumulado",
-                                        },
-                                    }}
-                                    className="h-[300px] w-full"
-                                >
-                                    <ComposedChart data={getAnalisisPareto()}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="grupo" angle={-45} textAnchor="end" height={100} label={{ value: 'Grupo', position: 'insideBottom', offset: 0 }} />
-                                        <YAxis yAxisId="left" label={{ value: 'Reprobados', angle: -90, position: 'insideLeft' }} />
-                                        <YAxis yAxisId="right" orientation="right" domain={[0, 100]} label={{ value: '% Acumulado', angle: 90, position: 'insideRight' }} />
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                        <Legend />
-                                        <Bar yAxisId="left" dataKey="reprobados" fill={COLORS.danger} name="Reprobados" />
-                                        <Line
-                                            yAxisId="right"
-                                            type="monotone"
-                                            dataKey="porcentajeAcumulado"
-                                            stroke={COLORS.primary}
-                                            strokeWidth={2}
-                                            dot={{ fill: COLORS.primary, r: 4 }}
-                                            name="% Acumulado"
-                                        />
-                                        <ReferenceLine yAxisId="right" y={80} stroke="#ff6b6b" strokeDasharray="5 5" strokeOpacity={0.5} label={{ value: "80%", position: "right", fill: "#ff6b6b", opacity: 0.6 }} />
-                                    </ComposedChart>
-                                </ChartContainer>
+                                {(() => {
+                                    const paretoData = getAnalisisPareto();
+                                    const totalReprobados = paretoData.reduce((sum, item) => sum + (item.reprobados || 0), 0);
+                                    const topGrupos = paretoData.slice(0, 3);
+                                    return (
+                                        <>
+                                            <div id="descripcion-pareto" className="sr-only">
+                                                Gráfico de Pareto combinado mostrando los grupos con mayor número de reprobados y su porcentaje acumulado.
+                                                Total de reprobados: {totalReprobados}.
+                                                {topGrupos.map((item, idx) =>
+                                                    ` ${item.grupo}: ${item.reprobados} reprobados (${item.porcentajeAcumulado?.toFixed(1) || 0}% acumulado).`
+                                                ).join('')}
+                                                {paretoData.length > 0 && paretoData[0].porcentajeAcumulado && paretoData[0].porcentajeAcumulado >= 80
+                                                    ? ` Los primeros grupos concentran más del 80% de los reprobados, cumpliendo el principio de Pareto.`
+                                                    : ` Los grupos están distribuidos de manera más uniforme.`}
+                                            </div>
+                                            <ChartContainer
+                                                id="pareto-chart"
+                                                config={{
+                                                    grupo: {
+                                                        label: "Grupo",
+                                                    },
+                                                    reprobados: {
+                                                        label: "Reprobados",
+                                                    },
+                                                    porcentajeAcumulado: {
+                                                        label: "% Acumulado",
+                                                    },
+                                                }}
+                                                className="h-[300px] w-full"
+                                                role="img"
+                                                aria-label="Gráfico de Pareto de reprobados por grupo"
+                                                aria-describedby="descripcion-pareto"
+                                            >
+                                                <ComposedChart data={paretoData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis dataKey="grupo" angle={-45} textAnchor="end" height={100} label={{ value: 'Grupo', position: 'insideBottom', offset: 0 }} />
+                                                    <YAxis yAxisId="left" label={{ value: 'Reprobados', angle: -90, position: 'insideLeft' }} />
+                                                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} label={{ value: '% Acumulado', angle: 90, position: 'insideRight' }} />
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                    <Legend />
+                                                    <Bar yAxisId="left" dataKey="reprobados" fill={COLORS.danger} name="Reprobados" />
+                                                    <Line
+                                                        yAxisId="right"
+                                                        type="monotone"
+                                                        dataKey="porcentajeAcumulado"
+                                                        stroke={COLORS.primary}
+                                                        strokeWidth={2}
+                                                        dot={{ fill: COLORS.primary, r: 4 }}
+                                                        name="% Acumulado"
+                                                    />
+                                                    <ReferenceLine yAxisId="right" y={80} stroke="#ff6b6b" strokeDasharray="5 5" strokeOpacity={0.5} label={{ value: "80%", position: "right", fill: "#ff6b6b", opacity: 0.6 }} />
+                                                </ComposedChart>
+                                            </ChartContainer>
+                                        </>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
 
@@ -2153,29 +2175,63 @@ export default function AnaliticaPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ChartContainer
-                                    id="control-chart"
-                                    config={{
-                                        periodo: { label: "Período" },
-                                        unidad: { label: "Unidad" },
-                                        [controlConfig.variable]: {
-                                            label: controlConfig.variable === 'reprobacion' ? '% Reprobación' :
-                                                controlConfig.variable === 'desercion' ? '% Deserción' :
-                                                    controlConfig.variable === 'asistencia' ? '% Asistencia' :
-                                                        controlConfig.variable === 'calificacion' ? 'Calificación Promedio' : 'Variable',
-                                        },
-                                    }}
-                                    className="h-[300px] w-full"
-                                >
-                                    <LineChart data={getControlReprobacion()}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey={controlConfig.agruparPor === 'unidad' ? 'unidad' : (controlConfig.agruparPor === 'materia' ? 'materia' : 'periodo')} label={{ value: controlConfig.agruparPor === 'unidad' ? 'Unidad' : (controlConfig.agruparPor === 'materia' ? 'Materia' : 'Período'), position: 'insideBottom', offset: -2 }} />
-                                        <YAxis label={{ value: (controlConfig.variable === 'reprobacion' ? '% Reprobación' : controlConfig.variable === 'desercion' ? '% Deserción' : controlConfig.variable === 'asistencia' ? '% Asistencia' : 'Calificación Promedio'), angle: -90, position: 'insideLeft' }} />
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                        <ReferenceLine y={50} stroke={COLORS.danger} strokeDasharray="5 5" label="Límite Crítico (50%)" />
-                                        <Line type="monotone" dataKey={controlConfig.variable} stroke={COLORS.warning} strokeWidth={3} />
-                                    </LineChart>
-                                </ChartContainer>
+                                {(() => {
+                                    const controlData = getControlReprobacion();
+                                    const variableLabel = controlConfig.variable === 'reprobacion' ? 'reprobación' :
+                                        controlConfig.variable === 'desercion' ? 'deserción' :
+                                            controlConfig.variable === 'asistencia' ? 'asistencia' :
+                                                controlConfig.variable === 'calificacion' ? 'calificación promedio' : 'variable';
+                                    const agruparPorLabel = controlConfig.agruparPor === 'unidad' ? 'unidad' :
+                                        controlConfig.agruparPor === 'materia' ? 'materia' : 'período';
+                                    const promedio = controlData.length > 0
+                                        ? (controlData.reduce((sum, item) => sum + (Number(item[controlConfig.variable]) || 0), 0) / controlData.length).toFixed(1)
+                                        : '0';
+                                    const maxValue = controlData.length > 0
+                                        ? Math.max(...controlData.map(item => Number(item[controlConfig.variable]) || 0)).toFixed(1)
+                                        : '0';
+                                    const minValue = controlData.length > 0
+                                        ? Math.min(...controlData.map(item => Number(item[controlConfig.variable]) || 0)).toFixed(1)
+                                        : '0';
+                                    return (
+                                        <>
+                                            <div id="descripcion-control" className="sr-only">
+                                                Gráfico de línea de control mostrando la evolución de {variableLabel} agrupado por {agruparPorLabel}.
+                                                {controlData.length > 0
+                                                    ? ` Se muestran ${controlData.length} puntos de datos. Promedio: ${promedio}%, valor máximo: ${maxValue}%, valor mínimo: ${minValue}%.`
+                                                    : ' No hay datos disponibles para mostrar.'}
+                                                {controlData.some(item => (Number(item[controlConfig.variable]) || 0) > 50)
+                                                    ? ' Algunos valores superan el límite crítico del 50%, indicando áreas que requieren atención.'
+                                                    : ' Todos los valores están por debajo del límite crítico del 50%.'}
+                                            </div>
+                                            <ChartContainer
+                                                id="control-chart"
+                                                config={{
+                                                    periodo: { label: "Período" },
+                                                    unidad: { label: "Unidad" },
+                                                    [controlConfig.variable]: {
+                                                        label: controlConfig.variable === 'reprobacion' ? '% Reprobación' :
+                                                            controlConfig.variable === 'desercion' ? '% Deserción' :
+                                                                controlConfig.variable === 'asistencia' ? '% Asistencia' :
+                                                                    controlConfig.variable === 'calificacion' ? 'Calificación Promedio' : 'Variable',
+                                                    },
+                                                }}
+                                                className="h-[300px] w-full"
+                                                role="img"
+                                                aria-label={`Gráfico de control de ${variableLabel} por ${agruparPorLabel}`}
+                                                aria-describedby="descripcion-control"
+                                            >
+                                                <LineChart data={controlData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis dataKey={controlConfig.agruparPor === 'unidad' ? 'unidad' : (controlConfig.agruparPor === 'materia' ? 'materia' : 'periodo')} label={{ value: controlConfig.agruparPor === 'unidad' ? 'Unidad' : (controlConfig.agruparPor === 'materia' ? 'Materia' : 'Período'), position: 'insideBottom', offset: -2 }} />
+                                                    <YAxis label={{ value: (controlConfig.variable === 'reprobacion' ? '% Reprobación' : controlConfig.variable === 'desercion' ? '% Deserción' : controlConfig.variable === 'asistencia' ? '% Asistencia' : 'Calificación Promedio'), angle: -90, position: 'insideLeft' }} />
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                    <ReferenceLine y={50} stroke={COLORS.danger} strokeDasharray="5 5" label="Límite Crítico (50%)" />
+                                                    <Line type="monotone" dataKey={controlConfig.variable} stroke={COLORS.warning} strokeWidth={3} />
+                                                </LineChart>
+                                            </ChartContainer>
+                                        </>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
 
@@ -2281,34 +2337,52 @@ export default function AnaliticaPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ChartContainer
-                                    id="scatter-chart"
-                                    config={{
-                                        [scatterConfig.variableX]: {
-                                            label: scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' :
-                                                scatterConfig.variableX === 'horas_estudio' ? 'Horas de Estudio' :
-                                                    scatterConfig.variableX === 'factores_riesgo' ? 'Factores de Riesgo' :
-                                                        scatterConfig.variableX === 'edad' ? 'Edad' :
-                                                            scatterConfig.variableX === 'semestre' ? 'Año' : 'Variable X',
-                                        },
-                                        [scatterConfig.variableY]: {
-                                            label: scatterConfig.variableY === 'promedio' ? 'Promedio Notas' :
-                                                scatterConfig.variableY === 'calificacion' ? 'Calificación Final' :
-                                                    scatterConfig.variableY === 'asistencia' ? 'Asistencia (%)' :
-                                                        scatterConfig.variableY === 'reprobacion' ? 'Reprobación' :
-                                                            scatterConfig.variableY === 'desercion' ? 'Deserción' : 'Variable Y',
-                                        },
-                                    }}
-                                    className="h-[300px] w-full"
-                                >
-                                    <ScatterChart data={getDispersionEstudio()}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey={scatterConfig.variableX} name={scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' : 'Variable X'} label={{ value: (scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' : scatterConfig.variableX === 'horas_estudio' ? 'Horas de Estudio' : scatterConfig.variableX === 'factores_riesgo' ? 'Factores de Riesgo' : scatterConfig.variableX === 'edad' ? 'Edad' : scatterConfig.variableX === 'semestre' ? 'Año' : 'Eje X'), position: 'insideBottom', offset: -2 }} />
-                                        <YAxis dataKey={scatterConfig.variableY} name={scatterConfig.variableY === 'promedio' ? 'Promedio Notas' : 'Variable Y'} label={{ value: (scatterConfig.variableY === 'promedio' ? 'Promedio Notas' : scatterConfig.variableY === 'calificacion' ? 'Calificación Final' : scatterConfig.variableY === 'asistencia' ? 'Asistencia (%)' : scatterConfig.variableY === 'reprobacion' ? 'Reprobación' : scatterConfig.variableY === 'desercion' ? 'Deserción' : 'Eje Y'), angle: -90, position: 'insideLeft' }} />
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                        <Scatter dataKey={scatterConfig.variableY} fill={COLORS.success} />
-                                    </ScatterChart>
-                                </ChartContainer>
+                                {(() => {
+                                    const scatterData = getDispersionEstudio();
+                                    const xLabel = scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' :
+                                        scatterConfig.variableX === 'horas_estudio' ? 'Horas de Estudio' :
+                                            scatterConfig.variableX === 'factores_riesgo' ? 'Factores de Riesgo' :
+                                                scatterConfig.variableX === 'edad' ? 'Edad' :
+                                                    scatterConfig.variableX === 'semestre' ? 'Año' : 'Variable X';
+                                    const yLabel = scatterConfig.variableY === 'promedio' ? 'Promedio Notas' :
+                                        scatterConfig.variableY === 'calificacion' ? 'Calificación Final' :
+                                            scatterConfig.variableY === 'asistencia' ? 'Asistencia (%)' :
+                                                scatterConfig.variableY === 'reprobacion' ? 'Reprobación' :
+                                                    scatterConfig.variableY === 'desercion' ? 'Deserción' : 'Variable Y';
+                                    return (
+                                        <>
+                                            <div id="descripcion-scatter" className="sr-only">
+                                                Diagrama de dispersión mostrando la relación entre {xLabel} (eje X) y {yLabel} (eje Y).
+                                                {scatterData.length > 0
+                                                    ? ` Se muestran ${scatterData.length} puntos de datos. Este gráfico ayuda a identificar correlaciones y patrones entre las dos variables.`
+                                                    : ' No hay datos disponibles para mostrar.'}
+                                            </div>
+                                            <ChartContainer
+                                                id="scatter-chart"
+                                                config={{
+                                                    [scatterConfig.variableX]: {
+                                                        label: xLabel,
+                                                    },
+                                                    [scatterConfig.variableY]: {
+                                                        label: yLabel,
+                                                    },
+                                                }}
+                                                className="h-[300px] w-full"
+                                                role="img"
+                                                aria-label={`Diagrama de dispersión: ${xLabel} vs ${yLabel}`}
+                                                aria-describedby="descripcion-scatter"
+                                            >
+                                                <ScatterChart data={scatterData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis dataKey={scatterConfig.variableX} name={scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' : 'Variable X'} label={{ value: (scatterConfig.variableX === 'asistencia' ? 'Asistencia (%)' : scatterConfig.variableX === 'horas_estudio' ? 'Horas de Estudio' : scatterConfig.variableX === 'factores_riesgo' ? 'Factores de Riesgo' : scatterConfig.variableX === 'edad' ? 'Edad' : scatterConfig.variableX === 'semestre' ? 'Año' : 'Eje X'), position: 'insideBottom', offset: -2 }} />
+                                                    <YAxis dataKey={scatterConfig.variableY} name={scatterConfig.variableY === 'promedio' ? 'Promedio Notas' : 'Variable Y'} label={{ value: (scatterConfig.variableY === 'promedio' ? 'Promedio Notas' : scatterConfig.variableY === 'calificacion' ? 'Calificación Final' : scatterConfig.variableY === 'asistencia' ? 'Asistencia (%)' : scatterConfig.variableY === 'reprobacion' ? 'Reprobación' : scatterConfig.variableY === 'desercion' ? 'Deserción' : 'Eje Y'), angle: -90, position: 'insideLeft' }} />
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                    <Scatter dataKey={scatterConfig.variableY} fill={COLORS.success} />
+                                                </ScatterChart>
+                                            </ChartContainer>
+                                        </>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
 
@@ -2410,26 +2484,50 @@ export default function AnaliticaPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ChartContainer
-                                    id="histogram-chart"
-                                    config={{
-                                        rango: {
-                                            label: "Rango de Calificación",
-                                        },
-                                        frecuencia: {
-                                            label: "Frecuencia",
-                                        },
-                                    }}
-                                    className="h-[300px] w-full"
-                                >
-                                    <RechartsBarChart data={getHistogramaCalificaciones()}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="rango" label={{ value: 'Rango de Calificación', position: 'insideBottom', offset: 0 }} />
-                                        <YAxis label={{ value: 'Frecuencia', angle: -90, position: 'insideLeft' }} />
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                        <Bar dataKey="frecuencia" fill={COLORS.primary} />
-                                    </RechartsBarChart>
-                                </ChartContainer>
+                                {(() => {
+                                    const histogramData = getHistogramaCalificaciones();
+                                    const totalFrecuencia = histogramData.reduce((sum, item) => sum + (item.frecuencia || 0), 0);
+                                    const rangoMasFrecuente = histogramData.length > 0
+                                        ? histogramData.reduce((max, item) => (item.frecuencia || 0) > (max.frecuencia || 0) ? item : max, histogramData[0])
+                                        : null;
+                                    return (
+                                        <>
+                                            <div id="descripcion-histograma" className="sr-only">
+                                                Histograma de barras mostrando la distribución de calificaciones por rangos.
+                                                Total de registros: {totalFrecuencia}.
+                                                {histogramData.map((item) =>
+                                                    ` Rango ${item.rango}: ${item.frecuencia} estudiantes.`
+                                                ).join('')}
+                                                {rangoMasFrecuente
+                                                    ? ` El rango más frecuente es ${rangoMasFrecuente.rango} con ${rangoMasFrecuente.frecuencia} estudiantes.`
+                                                    : ''}
+                                            </div>
+                                            <ChartContainer
+                                                id="histogram-chart"
+                                                config={{
+                                                    rango: {
+                                                        label: "Rango de Calificación",
+                                                    },
+                                                    frecuencia: {
+                                                        label: "Frecuencia",
+                                                    },
+                                                }}
+                                                className="h-[300px] w-full"
+                                                role="img"
+                                                aria-label="Histograma de distribución de calificaciones"
+                                                aria-describedby="descripcion-histograma"
+                                            >
+                                                <RechartsBarChart data={histogramData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis dataKey="rango" label={{ value: 'Rango de Calificación', position: 'insideBottom', offset: 0 }} />
+                                                    <YAxis label={{ value: 'Frecuencia', angle: -90, position: 'insideLeft' }} />
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                    <Bar dataKey="frecuencia" fill={COLORS.primary} />
+                                                </RechartsBarChart>
+                                            </ChartContainer>
+                                        </>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
 

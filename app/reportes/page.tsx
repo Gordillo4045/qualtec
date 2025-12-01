@@ -879,21 +879,39 @@ export default function ReportesPage() {
                             {/* Gráfico de distribución de calificaciones */}
                             <div className="space-y-2">
                                 <h4 className="text-sm font-medium">Distribución de Calificaciones</h4>
-                                <ChartContainer
-                                    config={{
-                                        calificaciones: {
-                                            label: "Calificaciones",
-                                        },
-                                        cantidad: {
-                                            label: "Cantidad",
-                                        },
-                                    }}
-                                    className="h-[200px] w-full"
-                                >
-                                    <RechartsBarChart
-                                        accessibilityLayer
-                                        data={generarDatosGraficoAcademico().distribucionCalificaciones}
-                                    >
+                                {(() => {
+                                    const datos = generarDatosGraficoAcademico().distribucionCalificaciones;
+                                    const total = datos.reduce((sum, item) => sum + (item.cantidad || 0), 0);
+                                    return (
+                                        <>
+                                            <div id="descripcion-distribucion-calificaciones" className="sr-only">
+                                                Gráfico de barras mostrando la distribución de calificaciones. 
+                                                Total de registros: {total}. 
+                                                {datos.map((item) => 
+                                                    ` Rango ${item.rango}: ${item.cantidad} estudiantes.`
+                                                ).join('')}
+                                            </div>
+                                            <ChartContainer
+                                                config={{
+                                                    calificaciones: {
+                                                        label: "Calificaciones",
+                                                    },
+                                                    cantidad: {
+                                                        label: "Cantidad",
+                                                    },
+                                                }}
+                                                className="h-[200px] w-full"
+                                                role="img"
+                                                aria-label="Gráfico de distribución de calificaciones"
+                                                aria-describedby="descripcion-distribucion-calificaciones"
+                                            >
+                                                <RechartsBarChart
+                                                    accessibilityLayer
+                                                    data={datos}
+                                                >
+                                        </>
+                                    );
+                                })()}
                                         <CartesianGrid vertical={false} />
                                         <XAxis
                                             dataKey="rango"
@@ -920,21 +938,43 @@ export default function ReportesPage() {
                             {/* Gráfico de aprobación por carrera */}
                             <div className="space-y-2">
                                 <h4 className="text-sm font-medium">Tasa de Aprobación por Carrera</h4>
-                                <ChartContainer
-                                    config={{
-                                        carrera: {
-                                            label: "Carrera",
-                                        },
-                                        tasaAprobacion: {
-                                            label: "Tasa de Aprobación (%)",
-                                        },
-                                    }}
-                                    className="h-[200px] w-full"
-                                >
-                                    <RechartsBarChart
-                                        accessibilityLayer
-                                        data={generarDatosGraficoAcademico().aprobacionPorCarrera}
-                                    >
+                                {(() => {
+                                    const datos = generarDatosGraficoAcademico().aprobacionPorCarrera;
+                                    const mejorCarrera = datos.length > 0 
+                                        ? datos.reduce((max, item) => (item.tasaAprobacion || 0) > (max.tasaAprobacion || 0) ? item : max, datos[0])
+                                        : null;
+                                    return (
+                                        <>
+                                            <div id="descripcion-aprobacion-carrera-reportes" className="sr-only">
+                                                Gráfico de barras mostrando la tasa de aprobación por carrera. 
+                                                {datos.map((item) => 
+                                                    ` ${item.carrera}: ${item.tasaAprobacion}% de aprobación.`
+                                                ).join('')}
+                                                {mejorCarrera 
+                                                    ? ` La carrera con mayor tasa de aprobación es ${mejorCarrera.carrera} con ${mejorCarrera.tasaAprobacion}%.`
+                                                    : ''}
+                                            </div>
+                                            <ChartContainer
+                                                config={{
+                                                    carrera: {
+                                                        label: "Carrera",
+                                                    },
+                                                    tasaAprobacion: {
+                                                        label: "Tasa de Aprobación (%)",
+                                                    },
+                                                }}
+                                                className="h-[200px] w-full"
+                                                role="img"
+                                                aria-label="Gráfico de tasa de aprobación por carrera"
+                                                aria-describedby="descripcion-aprobacion-carrera-reportes"
+                                            >
+                                                <RechartsBarChart
+                                                    accessibilityLayer
+                                                    data={datos}
+                                                >
+                                        </>
+                                    );
+                                })()}
                                         <CartesianGrid vertical={false} />
                                         <XAxis
                                             dataKey="carrera"
@@ -963,54 +1003,97 @@ export default function ReportesPage() {
                             {/* Gráfico circular de distribución de estudiantes */}
                             <div className="space-y-2">
                                 <h4 className="text-sm font-medium">Distribución de Estudiantes por Carrera</h4>
-                                <ChartContainer
-                                    config={{
-                                        carrera: {
-                                            label: "Carrera",
-                                        },
-                                        estudiantes: {
-                                            label: "Estudiantes",
-                                        },
-                                    }}
-                                    className="h-[200px] w-full"
-                                >
-                                    <RechartsPieChart>
-                                        <Pie
-                                            data={generarDatosGraficoEstadisticas().distribucionEstudiantes}
-                                            dataKey="estudiantes"
-                                            nameKey="carrera"
-                                            innerRadius={60}
-                                            strokeWidth={5}
-                                        >
-                                            {generarDatosGraficoEstadisticas().distribucionEstudiantes.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <ChartTooltip
-                                            content={<ChartTooltipContent hideLabel />}
-                                        />
-                                    </RechartsPieChart>
-                                </ChartContainer>
+                                {(() => {
+                                    const datos = generarDatosGraficoEstadisticas().distribucionEstudiantes;
+                                    const total = datos.reduce((sum, item) => sum + (item.estudiantes || 0), 0);
+                                    return (
+                                        <>
+                                            <div id="descripcion-distribucion-estudiantes-reportes" className="sr-only">
+                                                Gráfico circular mostrando la distribución de estudiantes por carrera. 
+                                                Total de estudiantes: {total}. 
+                                                {datos.map((item, idx) => {
+                                                    const porcentaje = total > 0 ? ((item.estudiantes / total) * 100).toFixed(1) : '0';
+                                                    return ` ${item.carrera}: ${item.estudiantes} estudiantes (${porcentaje}% del total).`;
+                                                }).join('')}
+                                            </div>
+                                            <ChartContainer
+                                                config={{
+                                                    carrera: {
+                                                        label: "Carrera",
+                                                    },
+                                                    estudiantes: {
+                                                        label: "Estudiantes",
+                                                    },
+                                                }}
+                                                className="h-[200px] w-full"
+                                                role="img"
+                                                aria-label="Gráfico circular de distribución de estudiantes por carrera"
+                                                aria-describedby="descripcion-distribucion-estudiantes-reportes"
+                                            >
+                                                <RechartsPieChart>
+                                                    <Pie
+                                                        data={datos}
+                                                        dataKey="estudiantes"
+                                                        nameKey="carrera"
+                                                        innerRadius={60}
+                                                        strokeWidth={5}
+                                                    >
+                                                        {datos.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <ChartTooltip
+                                                        content={<ChartTooltipContent hideLabel />}
+                                                    />
+                                                </RechartsPieChart>
+                                            </ChartContainer>
+                                        </>
+                                    );
+                                })()}
                             </div>
 
                             {/* Gráfico de evolución temporal */}
                             <div className="space-y-2">
                                 <h4 className="text-sm font-medium">Evolución de Aprobación por Periodo</h4>
-                                <ChartContainer
-                                    config={{
-                                        periodo: {
-                                            label: "Periodo",
-                                        },
-                                        tasaAprobacion: {
-                                            label: "Tasa de Aprobación (%)",
-                                        },
-                                    }}
-                                    className="h-[200px] w-full"
-                                >
-                                    <LineChart
-                                        accessibilityLayer
-                                        data={generarDatosGraficoEstadisticas().evolucionPorPeriodo}
-                                    >
+                                {(() => {
+                                    const datos = generarDatosGraficoEstadisticas().evolucionPorPeriodo;
+                                    const tendencia = datos.length > 1 
+                                        ? (datos[datos.length - 1].tasaAprobacion || 0) > (datos[0].tasaAprobacion || 0) 
+                                            ? 'tendencia al alza' 
+                                            : (datos[datos.length - 1].tasaAprobacion || 0) < (datos[0].tasaAprobacion || 0)
+                                                ? 'tendencia a la baja'
+                                                : 'tendencia estable'
+                                        : '';
+                                    return (
+                                        <>
+                                            <div id="descripcion-evolucion-periodo" className="sr-only">
+                                                Gráfico de línea mostrando la evolución de la tasa de aprobación por período. 
+                                                {datos.map((item) => 
+                                                    ` Período ${item.periodo}: ${item.tasaAprobacion}% de aprobación.`
+                                                ).join('')}
+                                                {tendencia && ` La tendencia general muestra una ${tendencia}.`}
+                                            </div>
+                                            <ChartContainer
+                                                config={{
+                                                    periodo: {
+                                                        label: "Periodo",
+                                                    },
+                                                    tasaAprobacion: {
+                                                        label: "Tasa de Aprobación (%)",
+                                                    },
+                                                }}
+                                                className="h-[200px] w-full"
+                                                role="img"
+                                                aria-label="Gráfico de evolución de aprobación por período"
+                                                aria-describedby="descripcion-evolucion-periodo"
+                                            >
+                                                <LineChart
+                                                    accessibilityLayer
+                                                    data={datos}
+                                                >
+                                        </>
+                                    );
+                                })()}
                                         <CartesianGrid vertical={false} />
                                         <XAxis
                                             dataKey="periodo"

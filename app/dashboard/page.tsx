@@ -280,33 +280,46 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent>
                             {datosGraficoBarras.length > 0 ? (
-                                <ChartContainer
-                                    config={{
-                                        carrera: { label: "Carrera" },
-                                        tasaAprobacion: { label: "% Aprobación" },
-                                    }}
-                                    className="h-[300px] w-full"
-                                >
-                                    <BarChart data={datosGraficoBarras}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis
-                                            dataKey="carrera"
-                                            tick={{ fontSize: 12 }}
-                                            angle={-45}
-                                            textAnchor="end"
-                                            height={80}
-                                        />
-                                        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                                        <ChartTooltip
-                                            content={
-                                                <ChartTooltipContent
-                                                    formatter={(value) => [`${value}%`, '% Aprobación']}
-                                                />
-                                            }
-                                        />
-                                        <Bar dataKey="tasaAprobacion" fill={PALETTE[1]} radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                </ChartContainer>
+                                <>
+                                    <div id="descripcion-aprobacion-carrera" className="sr-only">
+                                        Gráfico de barras mostrando la tasa de aprobación por carrera. 
+                                        {aprobacionCarreras.map((c) => {
+                                            const aprobados = Math.round((c.tasaAprobacion / 100) * c.total);
+                                            return ` ${c.carrera}: ${c.tasaAprobacion}% de aprobación (${aprobados} aprobados de ${c.total} total).`;
+                                        }).join('')}
+                                        La carrera con mayor tasa de aprobación es {aprobacionCarreras[0]?.carrera || 'N/A'} con {aprobacionCarreras[0]?.tasaAprobacion || 0}%.
+                                    </div>
+                                    <ChartContainer
+                                        config={{
+                                            carrera: { label: "Carrera" },
+                                            tasaAprobacion: { label: "% Aprobación" },
+                                        }}
+                                        className="h-[300px] w-full"
+                                        role="img"
+                                        aria-label="Gráfico de barras de tasa de aprobación por carrera"
+                                        aria-describedby="descripcion-aprobacion-carrera"
+                                    >
+                                        <BarChart data={datosGraficoBarras}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis
+                                                dataKey="carrera"
+                                                tick={{ fontSize: 12 }}
+                                                angle={-45}
+                                                textAnchor="end"
+                                                height={80}
+                                            />
+                                            <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                                            <ChartTooltip
+                                                content={
+                                                    <ChartTooltipContent
+                                                        formatter={(value) => [`${value}%`, '% Aprobación']}
+                                                    />
+                                                }
+                                            />
+                                            <Bar dataKey="tasaAprobacion" fill={PALETTE[1]} radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ChartContainer>
+                                </>
                             ) : (
                                 <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
                                     <div className="text-center">
@@ -327,38 +340,52 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent>
                             {datosGraficoCircular.length > 0 ? (
-                                <ChartContainer
-                                    config={{
-                                        name: { label: "Carrera" },
-                                        value: { label: "Estudiantes" },
-                                    }}
-                                    className="h-[300px] w-full"
-                                >
-                                    <RechartsPieChart>
-                                        <ChartTooltip
-                                            content={
-                                                <ChartTooltipContent
-                                                    formatter={(value, name) => [
-                                                        `${value} estudiantes`,
-                                                        name
-                                                    ]}
-                                                />
-                                            }
-                                        />
-                                        <Pie
-                                            data={datosGraficoCircular}
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={80}
-                                            dataKey="value"
-                                            label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                        >
-                                            {datosGraficoCircular.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                                            ))}
-                                        </Pie>
-                                    </RechartsPieChart>
-                                </ChartContainer>
+                                <>
+                                    <div id="descripcion-distribucion-carrera" className="sr-only">
+                                        Gráfico circular mostrando la distribución de estudiantes por carrera. 
+                                        {distribucionCarreras.map((c, idx) => {
+                                            const porcentaje = datosGraficoCircular[idx] ? 
+                                                ((datosGraficoCircular[idx].value / distribucionCarreras.reduce((sum, car) => sum + car.cantidad, 0)) * 100).toFixed(1) : '0';
+                                            return ` ${c.nombre}: ${c.cantidad} estudiantes (${porcentaje}% del total).`;
+                                        }).join('')}
+                                        Total de estudiantes: {distribucionCarreras.reduce((sum, c) => sum + c.cantidad, 0)}.
+                                    </div>
+                                    <ChartContainer
+                                        config={{
+                                            name: { label: "Carrera" },
+                                            value: { label: "Estudiantes" },
+                                        }}
+                                        className="h-[300px] w-full"
+                                        role="img"
+                                        aria-label="Gráfico circular de distribución de estudiantes por carrera"
+                                        aria-describedby="descripcion-distribucion-carrera"
+                                    >
+                                        <RechartsPieChart>
+                                            <ChartTooltip
+                                                content={
+                                                    <ChartTooltipContent
+                                                        formatter={(value, name) => [
+                                                            `${value} estudiantes`,
+                                                            name
+                                                        ]}
+                                                    />
+                                                }
+                                            />
+                                            <Pie
+                                                data={datosGraficoCircular}
+                                                cx="50%"
+                                                cy="50%"
+                                                outerRadius={80}
+                                                dataKey="value"
+                                                label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                            >
+                                                {datosGraficoCircular.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))}
+                                            </Pie>
+                                        </RechartsPieChart>
+                                    </ChartContainer>
+                                </>
                             ) : (
                                 <div className="h-[300px] flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
                                     <div className="text-center">
