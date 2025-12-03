@@ -46,9 +46,6 @@ import {
     Edit,
     Trash2,
     Users,
-    FileText,
-    Calendar,
-    Target,
     AlertCircle
 } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -576,7 +573,7 @@ export default function FactoresPage() {
                                 <Field>
                                     <div className="flex items-center gap-2">
                                         <Label htmlFor="observacion-factor">Observación</Label>
-                                        <FieldHelp 
+                                        <FieldHelp
                                             description="Observaciones adicionales sobre el factor de riesgo registrado. Incluye detalles relevantes para el seguimiento."
                                             id="help-observacion-factor"
                                         />

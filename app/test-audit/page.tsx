@@ -413,7 +413,7 @@ export default function TestAuditPage() {
                             <p className="text-sm text-muted-foreground">
                                 Estas operaciones crearán, actualizarán o eliminarán registros de prueba y los registrarán
                                 en la auditoría con tu usuario autenticado. Los logs aparecerán automáticamente en la
-                                sección "Logs Recientes" después de cada operación.
+                                sección &quot;Logs Recientes&quot; después de cada operación.
                             </p>
                         </div>
                     </CardContent>

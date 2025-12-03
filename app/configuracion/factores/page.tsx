@@ -37,7 +37,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import {
     AlertTriangle,
     TrendingUp,
@@ -47,9 +46,7 @@ import {
     Trash2,
     Users,
     FileText,
-    Calendar,
     Target,
-    AlertCircle,
     Layers,
     BookOpen,
     Heart,
@@ -547,7 +544,7 @@ export default function FactoresConfigPage() {
                                         <Field>
                                             <div className="flex items-center gap-2">
                                                 <Label htmlFor="categoria">Categoría</Label>
-                                                <FieldHelp 
+                                                <FieldHelp
                                                     description="Categoría del factor de riesgo. Ayuda a clasificar y organizar los factores."
                                                     id="help-categoria-factor"
                                                 />
@@ -575,7 +572,7 @@ export default function FactoresConfigPage() {
                                         <Field>
                                             <div className="flex items-center gap-2">
                                                 <Label htmlFor="descripcion-subfactor">Descripción</Label>
-                                                <FieldHelp 
+                                                <FieldHelp
                                                     description="Descripción detallada del subfactor de riesgo. Incluye información sobre cómo se manifiesta o afecta al estudiante."
                                                     id="help-descripcion-subfactor"
                                                 />

@@ -32,16 +32,13 @@ import {
 import {
     Search,
     Plus,
-    Filter,
     Download,
     MoreHorizontal,
     Edit,
     Trash2,
-    Eye,
     GraduationCap,
     Building,
     Users,
-    BookOpen,
     Save,
     X
 } from "lucide-react"
@@ -245,19 +242,6 @@ export default function CarrerasPage() {
                 console.error('Error al eliminar carrera:', error)
                 toast.error(error?.message || 'Error al eliminar la carrera. Inténtalo de nuevo.')
             }
-        }
-    }
-
-    const getStatusBadge = (estatus: string) => {
-        switch (estatus) {
-            case "Activa":
-                return <Badge variant="default" className="bg-green-100 text-green-800">Activa</Badge>
-            case "Inactiva":
-                return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inactiva</Badge>
-            case "En Revisión":
-                return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">En Revisión</Badge>
-            default:
-                return <Badge variant="outline">Desconocido</Badge>
         }
     }
 

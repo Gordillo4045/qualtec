@@ -37,7 +37,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
 import {
     Select,
@@ -49,18 +48,10 @@ import {
 import {
     Search,
     Plus,
-    Filter,
     Download,
     MoreHorizontal,
     Edit,
     Trash2,
-    Eye,
-    User,
-    Mail,
-    Phone,
-    Calendar,
-    GraduationCap,
-    Users,
     BookOpen,
     CheckCircle,
     AlertTriangle,
@@ -70,9 +61,6 @@ import {
     User2,
     ClipboardList,
     Target,
-    TrendingUp,
-    PlusCircle,
-    MinusCircle,
     FileText,
     Upload,
     FileSpreadsheet
@@ -119,7 +107,6 @@ export default function InscripcionesPage() {
     // Estados de paginación
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage] = useState(10)
-    const [loading, setLoading] = useState(true)
     const [isUploading, setIsUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [showUploadModal, setShowUploadModal] = useState(false)
@@ -1062,13 +1049,13 @@ export default function InscripcionesPage() {
                                                     id="help-estudiante-inscripcion"
                                                 />
                                             </div>
-                                            <Select 
-                                                value={formData.id_estudiante} 
+                                            <Select
+                                                value={formData.id_estudiante}
                                                 onValueChange={(value) => setFormData({ ...formData, id_estudiante: value })}
                                             >
-                                                <SelectTrigger 
-                                                    id="id_estudiante" 
-                                                    aria-label="Estudiante a inscribir" 
+                                                <SelectTrigger
+                                                    id="id_estudiante"
+                                                    aria-label="Estudiante a inscribir"
                                                     aria-describedby="help-estudiante-inscripcion"
                                                     aria-required="true"
                                                 >
@@ -1096,9 +1083,9 @@ export default function InscripcionesPage() {
                                                 onValueChange={(value) => setFormData({ ...formData, id_oferta: value })}
                                                 disabled={!formData.id_estudiante}
                                             >
-                                                <SelectTrigger 
-                                                    id="id_oferta" 
-                                                    aria-label="Oferta académica" 
+                                                <SelectTrigger
+                                                    id="id_oferta"
+                                                    aria-label="Oferta académica"
                                                     aria-describedby="help-oferta-inscripcion"
                                                     aria-required="true"
                                                     aria-disabled={!formData.id_estudiante}
@@ -1120,7 +1107,7 @@ export default function InscripcionesPage() {
                                         <Field>
                                             <div className="flex items-center gap-2">
                                                 <Label htmlFor="intentos">Intentos</Label>
-                                                <FieldHelp 
+                                                <FieldHelp
                                                     description="Número de veces que el estudiante ha cursado esta materia. Útil para identificar estudiantes que repiten materias."
                                                     id="help-intentos-inscripcion"
                                                 />
@@ -1170,7 +1157,7 @@ export default function InscripcionesPage() {
                                                                     <Field>
                                                                         <div className="flex items-center gap-2">
                                                                             <Label htmlFor={`calificacion-${unidad.id_materia_unidad}`}>Calificación (0-100)</Label>
-                                                                            <FieldHelp 
+                                                                            <FieldHelp
                                                                                 description={`Calificación obtenida en la unidad "${unidad.nombre_unidad}". Valor entre 0 y 100.`}
                                                                                 id={`help-calificacion-${unidad.id_materia_unidad}`}
                                                                             />
@@ -1191,7 +1178,7 @@ export default function InscripcionesPage() {
                                                                     <Field>
                                                                         <div className="flex items-center gap-2">
                                                                             <Label htmlFor={`asistio-${unidad.id_materia_unidad}`}>Asistió</Label>
-                                                                            <FieldHelp 
+                                                                            <FieldHelp
                                                                                 description={`Indica si el estudiante asistió a la unidad "${unidad.nombre_unidad}".`}
                                                                                 id={`help-asistio-${unidad.id_materia_unidad}`}
                                                                             />
@@ -1200,7 +1187,7 @@ export default function InscripcionesPage() {
                                                                             value={unidadData.asistio === null || unidadData.asistio === undefined ? '' : String(unidadData.asistio)}
                                                                             onValueChange={(value) => handleUnidadChange(unidad.id_materia_unidad, 'asistio', value === 'true')}
                                                                         >
-                                                                            <SelectTrigger 
+                                                                            <SelectTrigger
                                                                                 id={`asistio-${unidad.id_materia_unidad}`}
                                                                                 aria-label={`Asistencia a ${unidad.nombre_unidad}`}
                                                                                 aria-describedby={`help-asistio-${unidad.id_materia_unidad}`}

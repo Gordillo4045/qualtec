@@ -9,10 +9,8 @@ import {
     Users,
     BookOpen,
     BarChart3,
-    FileText,
     Settings,
     LogOut,
-    User,
     BrainCog,
     ChevronDown,
     GraduationCap,
@@ -49,7 +47,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ThemeToggle } from "./theme-toggle"
 import { User2, ChevronUp, Moon, Sun, History } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"

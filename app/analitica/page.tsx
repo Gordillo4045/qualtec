@@ -2,7 +2,6 @@
 import { Layout } from "@/components/layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
     Select,
     SelectContent,
@@ -25,7 +24,6 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
 import {
     ChartContainer,
     ChartTooltip,
@@ -37,61 +35,33 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
-    ResponsiveContainer,
     PieChart,
     Pie,
     Cell,
     LineChart,
     Line,
-    Area,
-    AreaChart,
     ScatterChart,
     Scatter,
-    RadarChart,
-    PolarGrid,
-    PolarAngleAxis,
-    PolarRadiusAxis,
-    Radar,
     Legend,
     ComposedChart,
     ReferenceLine
 } from "recharts"
 import {
-    TrendingUp,
-    TrendingDown,
-    Users,
-    AlertTriangle,
-    BookOpen,
     Target,
     BarChart3,
     PieChart as PieChartIcon,
     LineChart as LineChartIcon,
-    Activity,
     Download,
     Filter,
-    Calendar,
     GraduationCap,
-    BrainCog,
-    DollarSign,
-    Home,
-    Stethoscope,
-    Building,
-    Laptop,
-    BarChart,
     Circle,
     BarChart2,
-    Fish,
-    TrendingUp as ControlChart,
-    Zap,
-    FileText,
-    Loader2
+    TrendingUp as ControlChart
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
-import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 import { Canvg } from 'canvg'
 
 // Paleta unificada (Dashboard)
@@ -204,8 +174,8 @@ const drawTable = (
 
 export default function AnaliticaPage() {
     const [loading, setLoading] = useState(true)
-    const [selectedPeriod, setSelectedPeriod] = useState('all')
-    const [selectedCarrera, setSelectedCarrera] = useState('all')
+    const [selectedPeriod] = useState('all')
+    const [selectedCarrera] = useState('all')
     const [periodos, setPeriodos] = useState<any[]>([])
     const [carreras, setCarreras] = useState<any[]>([])
     const [estudianteFactores, setEstudianteFactores] = useState<any[]>([])
@@ -242,7 +212,6 @@ export default function AnaliticaPage() {
 
     // Estados para generación de reportes
     const [generatingReport, setGeneratingReport] = useState(false)
-    const [reportType, setReportType] = useState('')
 
     const supabase = createClient()
 
@@ -604,7 +573,7 @@ export default function AnaliticaPage() {
                     })
                 }
             }
-        } catch (_) { /* noop */ }
+        } catch (_: any) { }
 
         if (recomendaciones.length === 0) {
             recomendaciones.push({
@@ -760,7 +729,6 @@ export default function AnaliticaPage() {
         }
 
         let rangos = []
-        let dataKey = 'frecuencia'
 
         switch (histogramConfig.variable) {
             case 'calificaciones':
@@ -1080,7 +1048,7 @@ export default function AnaliticaPage() {
 
             let value = 0
             let label = ''
-            let total = inscripcionesPeriodo.length
+            const total = inscripcionesPeriodo.length
 
             switch (controlConfig.variable) {
                 case 'reprobacion':
@@ -1116,285 +1084,6 @@ export default function AnaliticaPage() {
                 label
             }
         })
-    }
-
-    // Datos para Diagrama de Ishikawa (simplificado)
-    const getCausasDesercion = () => {
-        return {
-            causas: [
-                { categoria: 'Académicas', causas: ['Bajo rendimiento', 'Dificultad en materias', 'Falta de estudio'] },
-                { categoria: 'Económicas', causas: ['Falta de recursos', 'Trabajo', 'Gastos escolares'] },
-                { categoria: 'Personales', causas: ['Problemas familiares', 'Salud', 'Motivación'] },
-                { categoria: 'Institucionales', causas: ['Horarios', 'Docentes', 'Infraestructura'] }
-            ]
-        }
-    }
-
-    // Funciones para generar reportes Excel
-    const generarReporteCompleto = async () => {
-        try {
-            setGeneratingReport(true)
-
-            // Crear workbook
-            const wb = XLSX.utils.book_new()
-
-            // 1. Resumen Ejecutivo
-            const resumenEjecutivo = [
-                { 'Métrica': 'Total Estudiantes', 'Valor': filteredEstudiantes.length },
-                { 'Métrica': 'Total Factores de Riesgo', 'Valor': filteredFactores.length },
-                { 'Métrica': 'Total Inscripciones', 'Valor': filteredInscripciones.length },
-                { 'Métrica': 'Tasa de Aprobación (%)', 'Valor': filteredInscripciones.length > 0 ? ((filteredInscripciones.filter(ins => ins.aprobado).length / filteredInscripciones.length) * 100).toFixed(1) : '0.0' },
-                { 'Métrica': 'Periodo Analizado', 'Valor': selectedPeriod === 'all' ? 'Todos los periodos' : periodos.find(p => p.id_periodo.toString() === selectedPeriod)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === selectedPeriod)?.anio },
-                { 'Métrica': 'Carrera Analizada', 'Valor': selectedCarrera === 'all' ? 'Todas las carreras' : carreras.find(c => c.id_carrera.toString() === selectedCarrera)?.nombre }
-            ]
-
-            const wsResumen = XLSX.utils.json_to_sheet(resumenEjecutivo)
-            XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen Ejecutivo')
-
-            // 2. Análisis de Pareto
-            const paretoData = getAnalisisPareto()
-            const wsPareto = XLSX.utils.json_to_sheet(paretoData)
-            XLSX.utils.book_append_sheet(wb, wsPareto, 'Análisis de Pareto')
-
-            // 3. Histograma de Calificaciones
-            const histogramData = getHistogramaCalificaciones()
-            const wsHistogram = XLSX.utils.json_to_sheet(histogramData)
-            XLSX.utils.book_append_sheet(wb, wsHistogram, 'Histograma Calificaciones')
-
-            // 4. Diagrama de Dispersión
-            const scatterData = getDispersionEstudio()
-            const wsScatter = XLSX.utils.json_to_sheet(scatterData)
-            XLSX.utils.book_append_sheet(wb, wsScatter, 'Diagrama de Dispersión')
-
-            // 5. Gráfico de Control
-            const controlData = getControlReprobacion()
-            const wsControl = XLSX.utils.json_to_sheet(controlData)
-            XLSX.utils.book_append_sheet(wb, wsControl, 'Gráfico de Control')
-
-            // 6. Factores por Categoría
-            const factoresCategoria = getFactoresPorCategoria()
-            const wsFactoresCategoria = XLSX.utils.json_to_sheet(factoresCategoria)
-            XLSX.utils.book_append_sheet(wb, wsFactoresCategoria, 'Factores por Categoría')
-
-            // 7. Distribución por Severidad
-            const severidadData = getFactoresPorSeveridad()
-            const wsSeveridad = XLSX.utils.json_to_sheet(severidadData)
-            XLSX.utils.book_append_sheet(wb, wsSeveridad, 'Distribución por Severidad')
-
-            // 8. Rendimiento por Carrera
-            const rendimientoData = getRendimientoPorCarrera()
-            const wsRendimiento = XLSX.utils.json_to_sheet(rendimientoData)
-            XLSX.utils.book_append_sheet(wb, wsRendimiento, 'Rendimiento por Carrera')
-
-            // 9. Top Factores de Riesgo
-            const topFactores = getTopFactoresRiesgo()
-            const wsTopFactores = XLSX.utils.json_to_sheet(topFactores)
-            XLSX.utils.book_append_sheet(wb, wsTopFactores, 'Top Factores de Riesgo')
-
-            // 10. Tendencia Temporal
-            const tendenciaData = getTendenciaTemporal()
-            const wsTendencia = XLSX.utils.json_to_sheet(tendenciaData)
-            XLSX.utils.book_append_sheet(wb, wsTendencia, 'Tendencia Temporal')
-
-            // 11. Datos Detallados de Factores
-            const factoresDetallados = filteredFactores.map(ef => ({
-                'Número Control': ef.estudiante?.numero_control || '',
-                'Nombre Completo': `${ef.estudiante?.nombres || ''} ${ef.estudiante?.ap_paterno || ''} ${ef.estudiante?.ap_materno || ''}`,
-                'Carrera': ef.estudiante?.carrera?.nombre || '',
-                'Factor': ef.factor?.nombre || '',
-                'Subfactor': ef.subfactor?.nombre || '',
-                'Categoría': ef.factor?.categoria || '',
-                'Severidad': ef.severidad || 0,
-                'Observación': ef.observacion || '',
-                'Periodo': `${ef.periodo?.anio || ''}-${ef.periodo?.etiqueta || ''}`,
-                'Fecha Registro': ef.fecha_registro || ''
-            }))
-
-            const wsFactoresDetallados = XLSX.utils.json_to_sheet(factoresDetallados)
-            XLSX.utils.book_append_sheet(wb, wsFactoresDetallados, 'Factores Detallados')
-
-            // 12. Datos Detallados de Inscripciones
-            const inscripcionesDetalladas = filteredInscripciones.map(ins => ({
-                'Número Control': ins.estudiante?.numero_control || '',
-                'Nombre Completo': `${ins.estudiante?.nombres || ''} ${ins.estudiante?.ap_paterno || ''} ${ins.estudiante?.ap_materno || ''}`,
-                'Carrera': ins.estudiante?.carrera?.nombre || '',
-                'Materia': ins.oferta?.materia?.nombre || '',
-                'Grupo': ins.oferta?.grupo?.clave || '',
-                'Periodo': `${ins.oferta?.periodo?.anio || ''}-${ins.oferta?.periodo?.etiqueta || ''}`,
-                'Calificación Final': ins.cal_final || 0,
-                'Asistencia (%)': ins.asistencia_pct || 0,
-                'Aprobado': ins.aprobado ? 'Sí' : 'No',
-                'Intentos': ins.intentos || 1
-            }))
-
-            const wsInscripcionesDetalladas = XLSX.utils.json_to_sheet(inscripcionesDetalladas)
-            XLSX.utils.book_append_sheet(wb, wsInscripcionesDetalladas, 'Inscripciones Detalladas')
-
-            // 13. Recomendaciones de Mejora
-            const recomendaciones = getRecomendacionesMejora()
-            const wsRecomendaciones = XLSX.utils.json_to_sheet(recomendaciones)
-            XLSX.utils.book_append_sheet(wb, wsRecomendaciones, 'Recomendaciones')
-
-            // Generar nombre de archivo
-            const periodo = selectedPeriod !== 'all' ? periodos.find(p => p.id_periodo.toString() === selectedPeriod) : null
-            const carrera = selectedCarrera !== 'all' ? carreras.find(c => c.id_carrera.toString() === selectedCarrera) : null
-
-            let nombreArchivo = 'Reporte_Analitica_Completo'
-            if (periodo) nombreArchivo += `_${periodo.anio}-${periodo.etiqueta}`
-            if (carrera) nombreArchivo += `_${carrera.nombre.replace(/\s+/g, '_')}`
-            nombreArchivo += `_${new Date().toISOString().split('T')[0]}.xlsx`
-
-            // Descargar archivo
-            XLSX.writeFile(wb, nombreArchivo)
-
-            toast.success('Reporte completo de analítica generado exitosamente')
-
-        } catch (error) {
-            console.error('Error al generar reporte completo:', error)
-            toast.error('Error al generar el reporte completo')
-        } finally {
-            setGeneratingReport(false)
-        }
-    }
-
-    const generarReportePareto = async () => {
-        try {
-            setGeneratingReport(true)
-
-            const wb = XLSX.utils.book_new()
-
-            // Datos del análisis de Pareto
-            const paretoData = getAnalisisPareto()
-            const wsPareto = XLSX.utils.json_to_sheet(paretoData)
-            XLSX.utils.book_append_sheet(wb, wsPareto, 'Análisis de Pareto')
-
-            // Configuración utilizada
-            const configData = [
-                { 'Parámetro': 'Variable Analizada', 'Valor': paretoConfig.variable },
-                { 'Parámetro': 'Periodo', 'Valor': paretoConfig.periodo === 'all' ? 'Todos' : periodos.find(p => p.id_periodo.toString() === paretoConfig.periodo)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === paretoConfig.periodo)?.anio },
-                { 'Parámetro': 'Carrera', 'Valor': selectedCarrera === 'all' ? 'Todas' : carreras.find(c => c.id_carrera.toString() === selectedCarrera)?.nombre },
-                { 'Parámetro': 'Fecha Generación', 'Valor': new Date().toLocaleString() }
-            ]
-
-            const wsConfig = XLSX.utils.json_to_sheet(configData)
-            XLSX.utils.book_append_sheet(wb, wsConfig, 'Configuración')
-
-            let nombreArchivo = `Reporte_Pareto_${paretoConfig.variable}_${new Date().toISOString().split('T')[0]}.xlsx`
-            XLSX.writeFile(wb, nombreArchivo)
-
-            toast.success('Reporte de análisis de Pareto generado exitosamente')
-
-        } catch (error) {
-            console.error('Error al generar reporte Pareto:', error)
-            toast.error('Error al generar el reporte de Pareto')
-        } finally {
-            setGeneratingReport(false)
-        }
-    }
-
-    const generarReporteHistograma = async () => {
-        try {
-            setGeneratingReport(true)
-
-            const wb = XLSX.utils.book_new()
-
-            // Datos del histograma
-            const histogramData = getHistogramaCalificaciones()
-            const wsHistogram = XLSX.utils.json_to_sheet(histogramData)
-            XLSX.utils.book_append_sheet(wb, wsHistogram, 'Histograma')
-
-            // Configuración utilizada
-            const configData = [
-                { 'Parámetro': 'Variable Analizada', 'Valor': histogramConfig.variable },
-                { 'Parámetro': 'Periodo', 'Valor': histogramConfig.periodo === 'all' ? 'Todos' : periodos.find(p => p.id_periodo.toString() === histogramConfig.periodo)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === histogramConfig.periodo)?.anio },
-                { 'Parámetro': 'Carrera', 'Valor': histogramConfig.carrera === 'all' ? 'Todas' : carreras.find(c => c.id_carrera.toString() === histogramConfig.carrera)?.nombre },
-                { 'Parámetro': 'Fecha Generación', 'Valor': new Date().toLocaleString() }
-            ]
-
-            const wsConfig = XLSX.utils.json_to_sheet(configData)
-            XLSX.utils.book_append_sheet(wb, wsConfig, 'Configuración')
-
-            let nombreArchivo = `Reporte_Histograma_${histogramConfig.variable}_${new Date().toISOString().split('T')[0]}.xlsx`
-            XLSX.writeFile(wb, nombreArchivo)
-
-            toast.success('Reporte de histograma generado exitosamente')
-
-        } catch (error) {
-            console.error('Error al generar reporte histograma:', error)
-            toast.error('Error al generar el reporte de histograma')
-        } finally {
-            setGeneratingReport(false)
-        }
-    }
-
-    const generarReporteDispersion = async () => {
-        try {
-            setGeneratingReport(true)
-
-            const wb = XLSX.utils.book_new()
-
-            // Datos del diagrama de dispersión
-            const scatterData = getDispersionEstudio()
-            const wsScatter = XLSX.utils.json_to_sheet(scatterData)
-            XLSX.utils.book_append_sheet(wb, wsScatter, 'Diagrama de Dispersión')
-
-            // Configuración utilizada
-            const configData = [
-                { 'Parámetro': 'Variable X', 'Valor': scatterConfig.variableX },
-                { 'Parámetro': 'Variable Y', 'Valor': scatterConfig.variableY },
-                { 'Parámetro': 'Periodo', 'Valor': scatterConfig.periodo === 'all' ? 'Todos' : periodos.find(p => p.id_periodo.toString() === scatterConfig.periodo)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === scatterConfig.periodo)?.anio },
-                { 'Parámetro': 'Fecha Generación', 'Valor': new Date().toLocaleString() }
-            ]
-
-            const wsConfig = XLSX.utils.json_to_sheet(configData)
-            XLSX.utils.book_append_sheet(wb, wsConfig, 'Configuración')
-
-            let nombreArchivo = `Reporte_Dispersion_${scatterConfig.variableX}_vs_${scatterConfig.variableY}_${new Date().toISOString().split('T')[0]}.xlsx`
-            XLSX.writeFile(wb, nombreArchivo)
-
-            toast.success('Reporte de diagrama de dispersión generado exitosamente')
-
-        } catch (error) {
-            console.error('Error al generar reporte dispersión:', error)
-            toast.error('Error al generar el reporte de dispersión')
-        } finally {
-            setGeneratingReport(false)
-        }
-    }
-
-    const generarReporteControl = async () => {
-        try {
-            setGeneratingReport(true)
-
-            const wb = XLSX.utils.book_new()
-
-            // Datos del gráfico de control
-            const controlData = getControlReprobacion()
-            const wsControl = XLSX.utils.json_to_sheet(controlData)
-            XLSX.utils.book_append_sheet(wb, wsControl, 'Gráfico de Control')
-
-            // Configuración utilizada
-            const configData = [
-                { 'Parámetro': 'Variable Controlada', 'Valor': controlConfig.variable },
-                { 'Parámetro': 'Periodo', 'Valor': controlConfig.periodo === 'all' ? 'Todos' : periodos.find(p => p.id_periodo.toString() === controlConfig.periodo)?.etiqueta + ' ' + periodos.find(p => p.id_periodo.toString() === controlConfig.periodo)?.anio },
-                { 'Parámetro': 'Carrera', 'Valor': controlConfig.carrera === 'all' ? 'Todas' : carreras.find(c => c.id_carrera.toString() === controlConfig.carrera)?.nombre },
-                { 'Parámetro': 'Fecha Generación', 'Valor': new Date().toLocaleString() }
-            ]
-
-            const wsConfig = XLSX.utils.json_to_sheet(configData)
-            XLSX.utils.book_append_sheet(wb, wsConfig, 'Configuración')
-
-            let nombreArchivo = `Reporte_Control_${controlConfig.variable}_${new Date().toISOString().split('T')[0]}.xlsx`
-            XLSX.writeFile(wb, nombreArchivo)
-
-            toast.success('Reporte de gráfico de control generado exitosamente')
-
-        } catch (error) {
-            console.error('Error al generar reporte control:', error)
-            toast.error('Error al generar el reporte de control')
-        } finally {
-            setGeneratingReport(false)
-        }
     }
 
     // Estilos de marca y utilidades visuales para PDF
@@ -1642,10 +1331,7 @@ export default function AnaliticaPage() {
             drawFooter(pdf)
 
             // Generar nombre de archivo
-            let nombreArchivo = 'Reporte_Analitica_Completo'
-            if (periodo) nombreArchivo += `_${periodo.anio}-${periodo.etiqueta}`
-            if (carrera) nombreArchivo += `_${carrera.nombre.replace(/\s+/g, '_')}`
-            nombreArchivo += `_${new Date().toISOString().split('T')[0]}.pdf`
+            const nombreArchivo = `Reporte_Analitica_Completo${periodo ? `_${periodo.anio}-${periodo.etiqueta}` : ''}${carrera ? `_${carrera.nombre.replace(/\s+/g, '_')}` : ''}_${new Date().toISOString().split('T')[0]}.pdf`
 
             // Descargar PDF
             pdf.save(nombreArchivo)
@@ -1817,7 +1503,7 @@ export default function AnaliticaPage() {
             drawFooter(pdf)
 
             // Generar nombre de archivo
-            let nombreArchivo = `Reporte_${chartType.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+            const nombreArchivo = `Reporte_${chartType.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
 
             // Descargar PDF
             pdf.save(nombreArchivo)
@@ -2011,7 +1697,7 @@ export default function AnaliticaPage() {
                                             <div id="descripcion-pareto" className="sr-only">
                                                 Gráfico de Pareto combinado mostrando los grupos con mayor número de reprobados y su porcentaje acumulado.
                                                 Total de reprobados: {totalReprobados}.
-                                                {topGrupos.map((item, idx) =>
+                                                {topGrupos.map((item) =>
                                                     ` ${item.grupo}: ${item.reprobados} reprobados (${item.porcentajeAcumulado?.toFixed(1) || 0}% acumulado).`
                                                 ).join('')}
                                                 {paretoData.length > 0 && paretoData[0].porcentajeAcumulado && paretoData[0].porcentajeAcumulado >= 80

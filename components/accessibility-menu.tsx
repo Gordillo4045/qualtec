@@ -28,7 +28,6 @@ import {
     PersonStanding,
     Circle
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 type ColorBlindnessType =
     | 'none'
@@ -92,7 +91,7 @@ export function AccessibilityMenu() {
             try {
                 const parsed = JSON.parse(saved)
                 setSettings({ ...defaultSettings, ...parsed })
-            } catch (e) { }
+            } catch (_: any) { }
         }
     }, [])
 
@@ -134,7 +133,7 @@ export function AccessibilityMenu() {
                     testUtterance.volume = 0
                     window.speechSynthesis.speak(testUtterance)
                     window.speechSynthesis.cancel()
-                } catch (e) { }
+                } catch (_: any) { }
             }
         }
 
@@ -154,7 +153,7 @@ export function AccessibilityMenu() {
                 } else {
                     startSpeaking(text)
                 }
-            } catch (error) { }
+            } catch (_: any) { }
         }
 
         const startSpeaking = (text: string) => {
@@ -211,7 +210,7 @@ export function AccessibilityMenu() {
 
                 currentUtterance = utterance
                 window.speechSynthesis.speak(utterance)
-            } catch (error) {
+            } catch (_: any) {
                 isSpeaking = false
                 currentUtterance = null
             }

@@ -31,19 +31,14 @@ import {
 import {
     Search,
     Plus,
-    Filter,
     Download,
     MoreHorizontal,
     Edit,
     Trash2,
-    Eye,
     Building,
     Users,
     BookMarked,
     GraduationCap,
-    Phone,
-    Mail,
-    MapPin,
     Save,
     X
 } from "lucide-react"

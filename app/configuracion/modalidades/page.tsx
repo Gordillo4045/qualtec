@@ -31,16 +31,13 @@ import {
 import {
     Search,
     Plus,
-    Filter,
     Download,
     MoreHorizontal,
     Edit,
     Trash2,
-    Eye,
     BookOpen,
     Save,
     X,
-    GraduationCap,
     Users,
     CheckCircle,
     AlertTriangle

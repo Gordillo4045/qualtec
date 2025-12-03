@@ -40,13 +40,10 @@ import {
 import {
     Search,
     Plus,
-    Filter,
     Download,
     MoreHorizontal,
     Edit,
     Trash2,
-    Eye,
-    User,
     Mail,
     Phone,
     Calendar as CalendarIcon,
@@ -55,7 +52,6 @@ import {
     BookOpen,
     CheckCircle,
     AlertTriangle,
-    Clock,
     Save,
     X,
     User2

@@ -9,7 +9,6 @@ import {
     AlertTriangle,
     FileText,
     TrendingUp,
-    TrendingDown,
     BarChart3,
     PieChart,
     Calendar
@@ -18,7 +17,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Cell, Pie } from "recharts"
 
 export default function DashboardPage() {
     // Paleta de colores solicitada
@@ -282,7 +281,7 @@ export default function DashboardPage() {
                             {datosGraficoBarras.length > 0 ? (
                                 <>
                                     <div id="descripcion-aprobacion-carrera" className="sr-only">
-                                        Gráfico de barras mostrando la tasa de aprobación por carrera. 
+                                        Gráfico de barras mostrando la tasa de aprobación por carrera.
                                         {aprobacionCarreras.map((c) => {
                                             const aprobados = Math.round((c.tasaAprobacion / 100) * c.total);
                                             return ` ${c.carrera}: ${c.tasaAprobacion}% de aprobación (${aprobados} aprobados de ${c.total} total).`;
@@ -342,9 +341,9 @@ export default function DashboardPage() {
                             {datosGraficoCircular.length > 0 ? (
                                 <>
                                     <div id="descripcion-distribucion-carrera" className="sr-only">
-                                        Gráfico circular mostrando la distribución de estudiantes por carrera. 
+                                        Gráfico circular mostrando la distribución de estudiantes por carrera.
                                         {distribucionCarreras.map((c, idx) => {
-                                            const porcentaje = datosGraficoCircular[idx] ? 
+                                            const porcentaje = datosGraficoCircular[idx] ?
                                                 ((datosGraficoCircular[idx].value / distribucionCarreras.reduce((sum, car) => sum + car.cantidad, 0)) * 100).toFixed(1) : '0';
                                             return ` ${c.nombre}: ${c.cantidad} estudiantes (${porcentaje}% del total).`;
                                         }).join('')}

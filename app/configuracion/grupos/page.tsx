@@ -31,16 +31,13 @@ import {
 import {
     Search,
     Plus,
-    Filter,
     Download,
     MoreHorizontal,
     Edit,
     Trash2,
-    Eye,
     Users2,
     GraduationCap,
     Clock,
-    Calendar,
     User,
     Save,
     X

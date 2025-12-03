@@ -12,7 +12,8 @@ interface FieldHelpProps {
 }
 
 export function FieldHelp({ description, className, id }: FieldHelpProps) {
-  const helpId = id || `field-help-${React.useId()}`
+  const generatedId = React.useId()
+  const helpId = id || `field-help-${generatedId}`
   
   return (
     <Tooltip>
